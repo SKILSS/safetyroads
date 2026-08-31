@@ -1,0 +1,30 @@
+{
+  "generatedAt": "2026-08-30T12:00:00Z",
+  "source": "mock-aggregator",
+  "reports": [
+    {
+      "sourceId": "mf-1001",
+      "title": "Pothole on M7",
+      "description": "Large pothole on right lane.",
+      "latitude": 55.7845,
+      "longitude": 49.1465,
+      "status": "Reported",
+      "severity": 4,
+      "createdAt": "2026-08-29T08:30:00Z",
+      "updatedAt": "2026-08-29T08:30:00Z",
+      "source": "municipal_feed"
+    },
+    {
+      "sourceId": "mf-1003",
+      "title": "Fixed pothole (example)",
+      "description": "This issue has been resolved.",
+      "latitude": 55.7928,
+      "longitude": 49.1101,
+      "status": "Resolved",
+      "severity": 2,
+      "createdAt": "2026-08-22T08:00:00Z",
+      "updatedAt": "2026-08-30T10:00:00Z",
+      "source": "municipal_feed"
+    }
+  ]
+}

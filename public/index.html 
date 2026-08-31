@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>UrbanRoads — Карта проблем</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+  <header>
+      <div class="logo">Urban<span>Roads</span></div>
+      <div class="header-title">Мониторинг городской инфраструктуры</div>
+  </header>
+
+  <div class="map-container">
+    <div class="panel">
+      <h2>Карта проблем</h2>
+      <div class="panel-description">Помогите улучшить городскую инфраструктуру. Отметьте проблему прямо на карте.</div>
+      <button class="add-button" id="addButton" onclick="startAdding()">+ Добавить проблему</button>
+      <div class="stats"><div class="stat"><div class="stat-number" id="totalProblems">0</div><div class="stat-label">Всего проблем</div></div><div class="stat"><div class="stat-number" id="roadProblems">0</div><div class="stat-label">Дорожных</div></div></div>
+      <div class="filter"><label>Фильтр проблем</label>
+        <select id="filterType" onchange="filterProblems()">
+          <option value="all">Все проблемы</option>
+          <option value="pothole">🕳️ Ямы</option>
+          <option value="traffic">🚗 Пробки</option>
+          <option value="sign">🚧 Знаки</option>
+          <option value="marking">🛣️ Разметка</option>
+          <option value="sidewalk">🚶 Тротуары</option>
+          <option value="crosswalk">🚸 Переходы</option>
+          <option value="lighting">💡 Освещение</option>
+          <option value="other">❓ Другое</option>
+        </select>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn" onclick="openSupport()">Support</button>
+        <button class="btn" onclick="openSettings()">Settings</button>
+      </div>
+    </div>
+
+    <div id="map"></div>
+  </div>
+
+  <!-- Modal same as earlier -->
+  <div class="modal" id="problemModal"><div class="modal-content">
+    <div class="modal-header"><h2>Новая проблема</h2><button class="close" onclick="closeModal()">×</button></div>
+    <div class="form-group"><label>Тип проблемы</label>
+      <select id="problemType">
+        <option value="pothole">🕳️ Яма на дороге</option>
+        <option value="traffic">🚗 Пробка</option>
+        <option value="sign">🚧 Поврежденный знак</option>
+        <option value="marking">🛣️ Плохая разметка</option>
+        <option value="sidewalk">🚶 Проблема с тротуаром</option>
+        <option value="crosswalk">🚸 Проблема с переходом</option>
+        <option value="lighting">💡 Плохое освещение</option>
+        <option value="other">❓ Другое</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Описание</label><textarea id="problemDescription" placeholder="Например: большая яма возле остановки..."></textarea></div>
+    <div class="form-group"><label>Фотография</label><input type="file" id="problemPhoto" accept="image/*"></div>
+    <div class="coordinates">📍 Координаты: <span id="coordinates">—</span></div>
+    <div class="modal-buttons"><button class="cancel-button" onclick="closeModal()">Отмена</button><button class="save-button" onclick="saveProblem()">Добавить проблему</button></div>
+  </div></div>
+
+  <!-- Support modal -->
+  <div class="modal" id="supportModal"><div class="modal-content"><div class="modal-header"><h2>Support</h2><button class="close" onclick="closeSupport()">×</button></div>
+  <p>How UrbanRoads works...</p>
+  <p>Contact: <a href="mailto:support@urbanroads.app">support@urbanroads.app</a></p>
+  </div></div>
+
+  <!-- Settings modal -->
+  <div class="modal" id="settingsModal"><div class="modal-content"><div class="modal-header"><h2>Settings</h2><button class="close" onclick="closeSettings()">×</button></div>
+    <div class="form-group"><label>AI: Deepseek integration</label>
+      <p style="font-size:13px;color:#555">When configured on server, you can send reports/photos to Deepseek for analysis.</p>
+      <button class="btn" onclick="triggerDeepseekSync()">Sync with Deepseek now</button>
+    </div>
+    <div class="form-group"><label>Language</label><select id="langSelect"><option value="ru">Русский</option><option value="en">English</option></select></div>
+  </div></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

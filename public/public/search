@@ -1,0 +1,1 @@
+curl -X POST http://localhost:3000/api/deepseek/search -H "Content-Type: application/json" -d '{"query":"плохие дороги казань last week"}'
