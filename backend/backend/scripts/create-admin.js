@@ -26,8 +26,8 @@ async function main() {
 main().catch((err) => { console.error(err); process.exit(1); });
 const express = require("express");
 const { pool } = require("../db");
-const { requireAuth, requireAdmin } = require("../middleware/auth");
-const { writeLimiter } = require("../middleware/security");
+const { requireAuth, requireAdmin } = require("../auth");
+const { writeLimiter } = require("../security");
 
 const router = express.Router();
 
