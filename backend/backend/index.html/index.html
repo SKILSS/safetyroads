@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SafetyRoad — Дорожный дозор</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            transition: background 0.2s, color 0.2s, border 0.2s;
+        }
+        body {
+            background: #0b0e14;
+            color: #e8edf5;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .app {
+            width: 100%;
+            max-width: 480px;
+            background: #131a24;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+        }
+        .header {
+            padding: 16px 20px 10px;
+            background: #1c2532;
+            border-bottom: 1px solid #2a3548;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-weight: 700;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #f6b83d, #f5a623);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .logo small {
+            font-size: 0.65rem;
+            -webkit-text-fill-color: #8899bb;
+            color: #8899bb;
+            margin-left: 6px;
+        }
+        .user-badge {
+            background: #2e3b4e;
+            padding: 4px 14px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            color: #b0c7e0;
+            cursor: pointer;
+        }
+        .tabs {
+            display: flex;
+            background: #0f1722;
+            border-bottom: 1px solid #2a3548;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .tab {
+            flex: 1;
+            padding: 12px 0;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #7a8aa0;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .tab.active {
+            color: #f5c542;
+            border-bottom-color: #f5c542;
+            background: #1a2330;
+        }
+        .content {
+            flex: 1;
+            padding: 16px 16px 80px;
+            overflow-y: auto;
+        }
+        .page {
+            display: none;
+            animation: fadeIn 0.2s ease;
+        }
+        .page.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0.3;
+                transform: translateY(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        #map {
+            height: 340px;
+            border-radius: 16px;
+            border: 1px solid #2f3d52;
+            margin-bottom: 10px;
+            background: #1a2535;
+            cursor: crosshair;
+        }
+        .map-footer {
+            font-size: 0.8rem;
+            color: #7e92b0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            margin-bottom: 12px;
+        }
+        .map-hint {
+            background: #1a2535;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            color: #f5a623;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+        .gas-prices {
+            background: #1a2535;
+            padding: 8px 14px;
+            border-radius: 40px;
+            display: inline-block;
+            font-size: 0.8rem;
+            color: #b0c7e0;
+        }
+        .gas-prices span {
+            margin-right: 12px;
+        }
+        .problem-item {
+            background: #1b2635;
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            border-left: 5px solid #f5a623;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        .problem-item .title {
+            font-weight: 600;
+            font-size: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .problem-item .meta {
+            font-size: 0.75rem;
+            color: #9aafcc;
+            margin-top: 6px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .problem-item .coords {
+            font-size: 0.7rem;
+            color: #7e92b0;
+            margin-top: 4px;
+            font-family: monospace;
+        }
+        .badge {
+            padding: 2px 14px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .badge.ai {
+            background: #2d5a3d;
+            color: #b0e0b0;
+        }
+        .badge.pending {
+            background: #6a5a2a;
+            color: #f5d98a;
+        }
+        .badge.new {
+            background: #4a5a7a;
+            color: #b0c7e0;
+        }
+        .add-form {
+            background: #1f2d40;
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 20px;
+            border: 1px dashed #3e5570;
+        }
+        .add-form input,
+        .add-form textarea,
+        .add-form select,
+        .add-form button {
+            width: 100%;
+            margin-top: 8px;
+            padding: 10px 14px;
+            border-radius: 30px;
+            border: 1px solid #31445c;
+            background: #101b28;
+            color: #dce6f0;
+            font-size: 0.9rem;
+        }
+        .add-form select option {
+            background: #1a2535;
+        }
+        .add-form .coord-row {
+            display: flex;
+            gap: 8px;
+        }
+        .add-form .coord-row input {
+            flex: 1;
+        }
+        .add-form button {
+            background: #f5a623;
+            color: #111;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+        .add-form button:hover {
+            background: #e0961a;
+        }
+        .add-form button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .file-input {
+            padding: 6px 10px;
+            background: #101b28;
+            border: 1px solid #3e5570;
+            border-radius: 30px;
+            color: #b0c7e0;
+        }
+        .settings-card {
+            background: #1a2535;
+            border-radius: 16px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+        }
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #29394e;
+        }
+        .settings-row:last-child {
+            border-bottom: none;
+        }
+        .theme-group {
+            display: flex;
+            gap: 12px;
+        }
+        .theme-btn {
+            background: #26344a;
+            border: none;
+            padding: 6px 18px;
+            border-radius: 40px;
+            color: #b0c7e0;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .theme-btn.active {
+            background: #f5a623;
+            color: #0b0e14;
+        }
+        .chat-support {
+            background: #1f2d40;
+            padding: 6px 14px;
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            max-width: 200px;
+        }
+        .chat-support input {
+            background: transparent;
+            border: none;
+            color: #dce6f0;
+            width: 100%;
+            outline: none;
+        }
+        .chat-support input::placeholder {
+            color: #5a7290;
+        }
+        .chat-support span {
+            cursor: pointer;
+            color: #f5a623;
+            font-weight: bold;
+        }
+        .register-box {
+            background: #1a2535;
+            border-radius: 20px;
+            padding: 20px;
+            margin-top: 10px;
+        }
+        .register-box input {
+            width: 100%;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            border-radius: 40px;
+            border: 1px solid #31445c;
+            background: #101b28;
+            color: #dce6f0;
+        }
+        .register-box .btn-reg {
+            background: #3a6ea5;
+            border: none;
+            padding: 12px;
+            border-radius: 40px;
+            font-weight: 700;
+            color: #fff;
+            width: 100%;
+            cursor: pointer;
+        }
+        .register-box .btn-reg:hover {
+            background: #2f5a8a;
+        }
+        .register-box .btn-logout {
+            background: #6a3a3a;
+            border: none;
+            padding: 12px;
+            border-radius: 40px;
+            font-weight: 700;
+            color: #fff;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .register-box .btn-logout:hover {
+            background: #5a2a2a;
+        }
+        .reg-msg {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #f5a623;
+        }
+        .reg-msg.success {
+            color: #8bc34a;
+        }
+        .reg-msg.error {
+            color: #f44336;
+        }
+        .user-status {
+            margin-top: 12px;
+            color: #b0c7e0;
+            font-size: 0.9rem;
+        }
+        .console {
+            background: #0c141f;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-family: monospace;
+            font-size: 0.7rem;
+            color: #b0c0d0;
+            margin-top: 12px;
+            border-left: 3px solid #f5a623;
+        }
+        .footer {
+            text-align: center;
+            font-size: 0.6rem;
+            color: #4a607a;
+            padding: 8px 0;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #7e92b0;
+        }
+        .selected-marker-info {
+            background: #1a2535;
+            border-radius: 12px;
+            padding: 8px 14px;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            color: #f5a623;
+            border: 1px solid #f5a623;
+        }
+        /* Светлая тема */
+        body.light .app {
+            background: #eef2f7;
+        }
+        body.light .header {
+            background: #d9e2ed;
+            border-bottom-color: #b8c9dd;
+        }
+        body.light .logo small {
+            -webkit-text-fill-color: #3a5a7a;
+            color: #3a5a7a;
+        }
+        body.light .tab {
+            color: #2f4a6a;
+        }
+        body.light .tab.active {
+            background: #d4e0ed;
+            color: #1f3a55;
+            border-bottom-color: #1f3a55;
+        }
+        body.light .content {
+            background: #eef2f7;
+        }
+        body.light .problem-item {
+            background: #ffffff;
+            border-left-color: #d48c1a;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+        body.light .problem-item .meta {
+            color: #3a5a7a;
+        }
+        body.light .add-form {
+            background: #d9e2ed;
+            border-color: #aabbd0;
+        }
+        body.light .add-form input,
+        body.light .add-form textarea,
+        body.light .add-form select {
+            background: #f4f8ff;
+            color: #1a2a3a;
+            border-color: #b0c4dd;
+        }
+        body.light .settings-card {
+            background: #d9e2ed;
+        }
+        body.light .settings-row {
+            border-color: #b8c9dd;
+        }
+        body.light .theme-btn {
+            background: #c0d0e0;
+            color: #1a2a3a;
+        }
+        body.light .theme-btn.active {
+            background: #d48c1a;
+            color: #fff;
+        }
+        body.light .register-box {
+            background: #d9e2ed;
+        }
+        body.light .register-box input {
+            background: #f4f8ff;
+            color: #1a2a3a;
+            border-color: #b0c4dd;
+        }
+        body.light .chat-support {
+            background: #d0ddee;
+        }
+        body.light .user-status {
+            color: #1f3a55;
+        }
+        body.light .map-footer {
+            color: #3a5a7a;
+        }
+        body.light #map {
+            border-color: #b8c9dd;
+        }
+        body.light .console {
+            background: #d9e2ed;
+            color: #1f3a55;
+        }
+        body.light .badge {
+            background: #c0d0e0;
+            color: #1f3a55;
+        }
+        body.light .badge.ai {
+            background: #b0d0b0;
+            color: #1a3a1a;
+        }
+        body.light .badge.pending {
+            background: #e8d090;
+            color: #3a3a1a;
+        }
+        body.light .gas-prices {
+            background: #d9e2ed;
+            color: #1f3a55;
+        }
+        body.light .map-hint {
+            background: #d9e2ed;
+            color: #d48c1a;
+        }
+        body.light .selected-marker-info {
+            background: #d9e2ed;
+            border-color: #d48c1a;
+            color: #1f3a55;
+        }
+        @media (max-width: 480px) {
+            .app {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- ШАПКА -->
+        <div class="header">
+            <div class="logo">SafetyRoad <small>дорожный дозор</small></div>
+            <div class="user-badge" id="userBadge" onclick="document.getElementById('page-settings').scrollIntoView()">👤 гость</div>
+        </div>
+
+        <!-- ВКЛАДКИ -->
+        <div class="tabs">
+            <button class="tab active" data-tab="map">🗺 Карта</button>
+            <button class="tab" data-tab="problems">⚠️ Проблемы</button>
+            <button class="tab" data-tab="settings">⚙️ Настройки</button>
+        </div>
+
+        <!-- КОНТЕНТ -->
+        <div class="content">
+            <!-- ===== КАРТА ===== -->
+            <div id="page-map" class="page active">
+                <div id="map"></div>
+                <div class="map-hint">🖱 Кликните на карту, чтобы выбрать место проблемы</div>
+                <div id="selectedCoords" class="selected-marker-info" style="display:none;">
+                    📍 Выбрано: <span id="coordDisplay">55.76, 37.64</span>
+                    <button onclick="clearSelectedPoint()" style="background:transparent;border:1px solid #f5a623;color:#f5a623;padding:2px 12px;border-radius:30px;cursor:pointer;margin-left:8px;">✕</button>
+                </div>
+                <div class="map-footer">
+                    <span>📍 Жёлтые — проблемы</span>
+                    <span>⛽ Синие — АЗС</span>
+                </div>
+                <div class="gas-prices" id="gasPrices">
+                    <span>⛽ АИ-92: 49.9 ₽</span>
+                    <span>АИ-95: 55.7 ₽</span>
+                    <span>ДТ: 61.2 ₽</span>
+                </div>
+            </div>
+
+            <!-- ===== ПРОБЛЕМЫ ===== -->
+            <div id="page-problems" class="page">
+                <div id="problemList">
+                    <div class="loading">⏳ Загрузка проблем...</div>
+                </div>
+
+                <div class="add-form">
+                    <h4 style="margin-bottom:4px;">➕ Сообщить о проблеме</h4>
+                    <input type="text" id="problemTitle" placeholder="Заголовок (например, Яма на дороге)" />
+                    <input type="text" id="problemRegion" placeholder="Регион (например, Москва)" />
+                    <select id="problemCategory">
+                        <option value="Дороги">🚧 Дороги</option>
+                        <option value="Освещение">💡 Освещение</option>
+                        <option value="ЖКХ">🏠 ЖКХ</option>
+                        <option value="Мусор">🗑 Мусор</option>
+                        <option value="other">📌 Другое</option>
+                    </select>
+                    <div class="coord-row">
+                        <input type="text" id="problemLat" placeholder="Широта (нажмите на карте)" readonly />
+                        <input type="text" id="problemLng" placeholder="Долгота (нажмите на карте)" readonly />
+                    </div>
+                    <input type="file" id="problemFile" accept="image/*" class="file-input" />
+                    <button id="submitProblem">Отправить на проверку</button>
+                    <div style="font-size:0.7rem;color:#7e92b0;margin-top:6px;">
+                        🤖 ИИ проверит фото (если загружено) • <span style="color:#f5a623;">Кликните на карту</span> чтобы выбрать координаты
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== НАСТРОЙКИ ===== -->
+            <div id="page-settings" class="page">
+                <div class="settings-card">
+                    <div class="settings-row">
+                        <span>🌓 Тема</span>
+                        <div class="theme-group">
+                            <button class="theme-btn" data-theme="dark">Тёмная</button>
+                            <button class="theme-btn active" data-theme="light">Светлая</button>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <span>🌐 Язык</span>
+                        <span style="color:#b0c7e0;">Русский</span>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <div class="settings-row">
+                        <span>💬 Поддержка</span>
+                        <div class="chat-support">
+                            <input type="text" placeholder="Напишите..." id="chatInput" />
+                            <span id="chatSend">➤</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="register-box">
+                    <h4 style="margin-bottom:12px;">🔐 Вход / Регистрация</h4>
+                    <input type="email" id="regEmail" placeholder="Email" />
+                    <input type="password" id="regPass" placeholder="Пароль (мин. 8 символов)" />
+                    <button class="btn-reg" id="regButton">Зарегистрироваться</button>
+                    <button class="btn-reg" id="loginButton" style="background:#4a7a5a;">Войти</button>
+                    <button class="btn-logout" id="logoutButton" style="display:none;">Выйти</button>
+                    <div class="reg-msg" id="regMessage"></div>
+                    <div class="user-status" id="userStatusBox">👤 Вы: гость</div>
+                </div>
+
+                <div class="console">
+                    ⚙️ Console: <span id="consoleMessage">Система готова</span>
+                </div>
+                <div class="footer">SafetyRoad — данные обновляются 24/7</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+    </script>
+    <script>
+        (function() {
+            'use strict';
+
+            // ===== КОНФИГ =====
+            const API_URL = window.location.origin + '/api';
+            // Для локальной разработки: const API_URL = 'http://localhost:8080/api';
+
+            // ===== СОСТОЯНИЕ =====
+            let token = localStorage.getItem('token');
+            let currentUser = localStorage.getItem('user') || 'гость';
+            let problems = [];
+            let map;
+            let selectedPoint = null;
+            let selectedMarker = null;
+
+            // ===== ИНИЦИАЛИЗАЦИЯ КАРТЫ =====
+            function initMap() {
+                map = L.map('map').setView([55.76, 37.64], 12);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap'
+                }).addTo(map);
+
+                // Клик по карте — выбор координат
+                map.on('click', function(e) {
+                    selectedPoint = e.latlng;
+                    document.getElementById('problemLat').value = selectedPoint.lat.toFixed(6);
+                    document.getElementById('problemLng').value = selectedPoint.lng.toFixed(6);
+                    document.getElementById('coordDisplay').textContent = 
+                        selectedPoint.lat.toFixed(6) + ', ' + selectedPoint.lng.toFixed(6);
+                    document.getElementById('selectedCoords').style.display = 'block';
+                    
+                    // Показываем маркер на карте
+                    if (selectedMarker) {
+                        map.removeLayer(selectedMarker);
+                    }
+                    selectedMarker = L.marker(selectedPoint, {
+                        icon: L.divIcon({ 
+                            className: 'selected-marker',
+                            html: '📍',
+                            iconSize: [30, 30]
+                        })
+                    }).addTo(map);
+                    
+                    document.getElementById('consoleMessage').innerText = 
+                        `📍 Выбраны координаты: ${selectedPoint.lat.toFixed(6)}, ${selectedPoint.lng.toFixed(6)}`;
+                });
+            }
+
+            // ===== ОЧИСТКА ВЫБРАННОЙ ТОЧКИ =====
+            window.clearSelectedPoint = function() {
+                selectedPoint = null;
+                document.getElementById('problemLat').value = '';
+                document.getElementById('problemLng').value = '';
+                document.getElementById('selectedCoords').style.display = 'none';
+                if (selectedMarker) {
+                    map.removeLayer(selectedMarker);
+                    selectedMarker = null;
+                }
+            };
+
+            // ===== API ВЫЗОВЫ =====
+            async function apiRequest(endpoint, options = {}) {
+                const headers = {
+                    'Content-Type': 'application/json',
+                    ...options.headers,
+                };
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                const response = await fetch(`${API_URL}${endpoint}`, {
+                    ...options,
+                    headers,
+                });
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({ error: 'Ошибка сервера' }));
+                    throw new Error(error.error || `HTTP ${response.status}`);
+                }
+                return response.json();
+            }
+
+            // ===== ЗАГРУЗКА ПРОБЛЕМ =====
+            async function loadProblems() {
+                try {
+                    const data = await apiRequest('/problems');
+                    problems = data;
+                    renderProblems();
+                    renderMapMarkers();
+                    document.getElementById('consoleMessage').innerText = `✅ Загружено ${problems.length} проблем`;
+                } catch (err) {
+                    document.getElementById('consoleMessage').innerText = `❌ Ошибка загрузки: ${err.message}`;
+                    // Если сервер недоступен — показываем демо-данные
+                    if (problems.length === 0) {
+                        problems = [
+                            { id: 1, title_ru: 'Провал асфальта на трассе', region: 'Бурятия', category: 'Дороги',
+                                status: 'Подтверждено ИИ', lat: 55.80, lng: 37.70 },
+                            { id: 2, title_ru: 'Не горят фонари во дворе', region: 'Бурятия', category: 'Освещение',
+                                status: 'На проверке', lat: 55.75, lng: 37.55 },
+                            { id: 3, title_ru: 'Перебои с отоплением', region: 'Сахалинская область', category: 'ЖКХ',
+                                status: 'На проверке', lat: 55.82, lng: 37.50 },
+                        ];
+                        renderProblems();
+                        renderMapMarkers();
+                    }
+                }
+            }
+
+            // ===== ОТРИСОВКА МАРКЕРОВ НА КАРТЕ =====
+            function renderMapMarkers() {
+                if (!map) return;
+                map.eachLayer((layer) => {
+                    if (layer instanceof L.Marker || layer instanceof L.CircleMarker) {
+                        if (layer === selectedMarker) return; // не удаляем выбранный маркер
+                        map.removeLayer(layer);
+                    }
+                });
+
+                // Проблемы из БД (с реальными координатами)
+                problems.forEach(p => {
+                    if (!p.lat || !p.lng) return;
+                    const color = p.status === 'Подтверждено ИИ' ? '#f5a623' : 
+                                  p.status === 'На проверке' ? '#ff9f4a' : '#4a7aaa';
+                    const marker = L.circleMarker([p.lat, p.lng], {
+                        radius: 10,
+                        color: color,
+                        fillColor: color,
+                        fillOpacity: 0.8,
+                        weight: 2,
+                    });
+                    const statusText = p.status || 'Новая';
+                    marker.bindPopup(`
+                        <b>${p.title_ru || p.title || 'Без названия'}</b><br/>
+                        📍 ${p.region || 'Не указан'}<br/>
+                        🏷 ${p.category || 'Другое'}<br/>
+                        📊 ${statusText}
+                        ${p.created_at ? `<br/>🕐 ${new Date(p.created_at).toLocaleDateString()}` : ''}
+                    `);
+                    marker.addTo(map);
+                });
+
+                // АЗС (демо-данные)
+                const gasStations = [
+                    { name: 'АЗС №1', lat: 55.78, lng: 37.60, price92: 49.9, price95: 55.7, dt: 61.2 },
+                    { name: 'АЗС №2', lat: 55.73, lng: 37.72, price92: 48.5, price95: 54.2, dt: 60.5 },
+                    { name: 'АЗС №3', lat: 55.84, lng: 37.52, price92: 50.1, price95: 56.0, dt: 62.0 }
+                ];
+                gasStations.forEach(g => {
+                    const popup =
+                        `<b>${g.name}</b><br/>⛽ АИ-92: ${g.price92}₽<br/>⛽ АИ-95: ${g.price95}₽<br/>⛽ ДТ: ${g.dt}₽`;
+                    const marker = L.marker([g.lat, g.lng], {
+                        icon: L.divIcon({ 
+                            className: 'gas-icon', 
+                            html: '⛽', 
+                            iconSize: [28, 28],
+                            iconAnchor: [14, 14]
+                        })
+                    });
+                    marker.bindPopup(popup);
+                    marker.addTo(map);
+                });
+
+                // Если есть выбранная точка — добавляем маркер обратно
+                if (selectedPoint && selectedMarker) {
+                    selectedMarker.addTo(map);
+                }
+            }
+
+            // ===== ОТРИСОВКА СПИСКА ПРОБЛЕМ =====
+            function renderProblems() {
+                const container = document.getElementById('problemList');
+                if (!container) return;
+                container.innerHTML = '';
+                if (problems.length === 0) {
+                    container.innerHTML =
+                        '<div style="padding:20px;text-align:center;color:#7e92b0;">✅ Все проблемы устранены!</div>';
+                    return;
+                }
+                problems.slice(0, 50).forEach(p => {
+                    const div = document.createElement('div');
+                    div.className = 'problem-item';
+                    const status = p.status || 'Новая';
+                    let badgeClass = 'badge new';
+                    if (status === 'Подтверждено ИИ') badgeClass = 'badge ai';
+                    else if (status === 'На проверке') badgeClass = 'badge pending';
+                    
+                    const coordsText = (p.lat && p.lng) ? `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}` : '📍 координаты не указаны';
+                    
+                    div.innerHTML = `
+                        <div class="title">
+                            <span>${p.title_ru || p.title || 'Без названия'}</span>
+                            <span class="${badgeClass}">${status}</span>
+                        </div>
+                        <div class="meta">
+                            <span>📍 ${p.region || 'Не указан'}</span>
+                            <span>📂 ${p.category || 'Другое'}</span>
+                            ${p.created_at ? `<span>🕐 ${new Date(p.created_at).toLocaleDateString()}</span>` : ''}
+                        </div>
+                        <div class="coords">📍 ${coordsText}</div>
+                        ${p.ai_verdict ? `<div style="font-size:0.7rem;color:#8bc34a;margin-top:4px;">🤖 ${p.ai_verdict}</div>` : ''}
+                    `;
+                    container.appendChild(div);
+                });
+            }
+
+            // ===== ДОБАВЛЕНИЕ ПРОБЛЕМЫ =====
+            async function addProblem(title, region, category, lat, lng, file) {
+                const submitBtn = document.getElementById('submitProblem');
+                submitBtn.disabled = true;
+                submitBtn.textContent = '⏳ Отправка...';
+
+                try {
+                    let imageDataUrl = null;
+                    if (file) {
+                        imageDataUrl = await new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => resolve(e.target.result);
+                            reader.readAsDataURL(file);
+                        });
+                    }
+
+                    const data = await apiRequest('/problems', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            region: region || 'Московская область',
+                            category: category || 'other',
+                            severity: 'med',
+                            titleRu: title,
+                            titleEn: title,
+                            lat: parseFloat(lat) || null,
+                            lng: parseFloat(lng) || null,
+                            imageDataUrl: imageDataUrl,
+                        }),
+                    });
+
+                    problems.unshift(data);
+                    renderProblems();
+                    renderMapMarkers();
+                    document.getElementById('consoleMessage').innerText =
+                        `✅ Проблема добавлена! Статус: ${data.status || 'Новая'}`;
+                    
+                    // Очищаем выбранную точку
+                    window.clearSelectedPoint();
+                } catch (err) {
+                    document.getElementById('consoleMessage').innerText = `❌ Ошибка: ${err.message}`;
+                    alert('Ошибка при добавлении: ' + err.message);
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Отправить на проверку';
+                }
+            }
+
+            // ===== РЕГИСТРАЦИЯ =====
+            async function register(email, password) {
+                try {
+                    const data = await apiRequest('/auth/register', {
+                        method: 'POST',
+                        body: JSON.stringify({ email, password }),
+                    });
+                    token = data.token;
+                    currentUser = data.user.email;
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('user', currentUser);
+                    updateUI();
+                    document.getElementById('regMessage').innerText = '✅ Регистрация успешна!';
+                    document.getElementById('regMessage').className = 'reg-msg success';
+                } catch (err) {
+                    document.getElementById('regMessage').innerText = '❌ ' + err.message;
+                    document.getElementById('regMessage').className = 'reg-msg error';
+                }
+            }
+
+            // ===== ЛОГИН =====
+            async function login(email, password) {
+                try {
+                    const data = await apiRequest('/auth/login', {
+                        method: 'POST',
+                        body: JSON.stringify({ email, password }),
+                    });
+                    token = data.token;
+                    currentUser = data.user.email;
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('user', currentUser);
+                    updateUI();
+                    document.getElementById('regMessage').innerText = '✅ Вход выполнен!';
+                    document.getElementById('regMessage').className = 'reg-msg success';
+                    loadProblems();
+                } catch (err) {
+                    document.getElementById('regMessage').innerText = '❌ ' + err.message;
+                    document.getElementById('regMessage').className = 'reg-msg error';
+                }
+            }
+
+            // ===== ВЫХОД =====
+            function logout() {
+                token = null;
+                currentUser = 'гость';
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                updateUI();
+                document.getElementById('regMessage').innerText = '👋 Вы вышли';
+                document.getElementById('regMessage').className = 'reg-msg';
+            }
+
+            // ===== ОБНОВЛЕНИЕ UI =====
+            function updateUI() {
+                const userBadge = document.getElementById('userBadge');
+                if (userBadge) {
+                    userBadge.innerText = currentUser || 'гость';
+                }
+            }
+        })();
+        </script>
+    </body>
+</html>
