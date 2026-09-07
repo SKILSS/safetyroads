@@ -5,11 +5,11 @@ const helmet = require("helmet");
 const cors = require("cors");
 const compression = require("compression");
 
-const { pool, initSchema } = require("./backend/db");
-const { apiLimiter, authLimiter, authSlowDown } = require("./backend/middleware/security");
-const authRoutes = require("./backend/routes/auth");
-const problemsRoutes = require("./backend/routes/problems");
-const adminRoutes = require("./backend/routes/admin");
+const { pool, initSchema } = require("./db");
+const { apiLimiter, authLimiter, authSlowDown } = require("./middleware/security");
+const authRoutes = require("./routes/auth");
+const problemsRoutes = require("./routes/problems");
+const adminRoutes = require("./routes/admin");
 
 const app = express();
 app.set("trust proxy", 1); // needed behind Render/Railway/Cloudflare for real client IPs
