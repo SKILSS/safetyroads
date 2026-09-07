@@ -1,5 +1,5 @@
 const express = require("express");
-const { pool } = require("../../../../scripts/db");
+const { pool } = require("../../db");
 const { requireAdmin } = require("../auth");
 
 const router = express.Router();
