@@ -5,8 +5,8 @@ const helmet = require("helmet");
 const cors = require("cors");
 const compression = require("compression");
 
-const { pool, initSchema } = require("./db");
-const { apiLimiter, authLimiter, authSlowDown } = require("./middleware/security");
+const { pool, initSchema } = require("./backend/db");
+const { apiLimiter, authLimiter, authSlowDown } = require("./backend/middleware/security");
 const authRoutes = require("./routes/auth");
 const problemsRoutes = require("./routes/problems");
 const adminRoutes = require("./routes/admin");
