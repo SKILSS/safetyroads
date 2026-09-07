@@ -7,16 +7,16 @@ const compression = require("compression");
 
 const { pool, initSchema } = require("./db");
 const { apiLimiter, authLimiter, authSlowDown } = require("./middleware/security");
-const authRoutes = require("./middleware/auth");
+const authRoutes = require("./routes/auth");
 const problemsRoutes = require("./routes/problems");
-const adminRoutes = require("../../admin");
+const adminRoutes = require("./routes/admin");
 
 const app = express();
-app.set("trust proxy", 1);
+app.set("trust proxy", 1); // needed behind Render/Railway/Cloudflare for real client IPs
 
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({ contentSecurityPolicy: false })); // CSP off by default so the existing frontend's inline script/CDN d3 still work; tighten later if you want
 app.use(compression());
-app.use(express.json({ limit: "3mb" }));
+app.use(express.json({ limit: "3mb" })); // covers a base64 photo without allowing huge payload floods
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(",").filter(Boolean);
 app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : true, credentials: false }));
@@ -30,10 +30,14 @@ app.use("/api/auth", authRoutes);
 app.use("/api/problems", problemsRoutes);
 app.use("/api/admin", adminRoutes);
 
+// Serve the frontend from the same server, so one deploy = the whole site.
 app.use(express.static(path.join(__dirname, "..", "frontend")));
 app.get("*", (req, res, next) => {
   if (req.path.startsWith("/api")) return next();
   res.sendFile(path.join(__dirname, "..", "frontend", "index.html"), (err) => {
+    // sendFile's own error callback, so a missing/misplaced frontend build
+    // gives a clear log line pointing at the real cause instead of a bare
+    // "Internal server error" with no context.
     if (err) {
       console.error("Could not send frontend/index.html — is the frontend/ folder deployed alongside backend/?", err);
       next(err);
@@ -50,6 +54,9 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: "Internal server error." });
 });
 
+// Last-resort safety nets: log and keep running instead of a silent crash.
+// The real fixes are try/catch in every route (done) and pool.on('error')
+// in db.js (done) — these are just insurance against anything missed.
 process.on("unhandledRejection", (reason) => {
   console.error("Unhandled promise rejection (process kept alive):", reason);
 });

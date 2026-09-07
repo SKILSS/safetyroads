@@ -1,36 +1,11 @@
-// Run once after deploying: npm run create-admin
-// Reads ADMIN_EMAIL / ADMIN_PASSWORD from .env, creates (or promotes) that
-// user to role='admin'. This is the ONLY way an admin account gets made —
-// the public /register endpoint always creates plain 'user' accounts.
-require("dotenv").config();
-const bcrypt = require("bcryptjs");
-const { pool, initSchema } = require("../db");
-
-async function main() {
-  const email = process.env.ADMIN_EMAIL;
-  const password = process.env.ADMIN_PASSWORD;
-  if (!email || !password) {
-    console.error("Set ADMIN_EMAIL and ADMIN_PASSWORD in .env first.");
-    process.exit(1);
-  }
-  await initSchema();
-  const hash = bcrypt.hashSync(password, 12);
-  await pool.query(
-    `INSERT INTO users (email, password_hash, role) VALUES ($1, $2, 'admin')
-     ON CONFLICT (email) DO UPDATE SET password_hash = $2, role = 'admin'`,
-    [email.toLowerCase(), hash]
-  );
-  console.log(`Admin account ready: ${email}`);
-  await pool.end();
-}
-main().catch((err) => { console.error(err); process.exit(1); });
 const express = require("express");
 const { pool } = require("../db");
-const { requireAuth, requireAdmin } = require("../auth");
-const { writeLimiter } = require("../security");
+const { requireAuth, requireAdmin } = require("../middleware/auth");
+const { writeLimiter } = require("../middleware/security");
 
 const router = express.Router();
 
+// Public: anyone can read the map/feed — no login needed to browse.
 router.get("/", async (req, res, next) => {
   try {
     const { region } = req.query;
@@ -44,6 +19,11 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+// Logged-in users only: submitting a report requires an account, so a
+// single bad actor can't anonymously flood the feed or burn through your
+// DeepSeek quota. The DeepSeek key itself never leaves the server — the
+// browser just sends the report; this endpoint calls DeepSeek itself using
+// the key an admin set via PUT /api/admin/settings.
 router.post("/", requireAuth, writeLimiter, async (req, res, next) => {
   try {
     const { region, category, severity, titleRu, titleEn, imageDataUrl } = req.body || {};
@@ -75,7 +55,7 @@ router.post("/", requireAuth, writeLimiter, async (req, res, next) => {
           aiVerdict = data?.choices?.[0]?.message?.content || null;
         }
       } catch {
-        aiVerdict = null;
+        aiVerdict = null; // AI review is best-effort; a failed call shouldn't block the report
       }
     }
 
@@ -90,6 +70,7 @@ router.post("/", requireAuth, writeLimiter, async (req, res, next) => {
   }
 });
 
+// Admin-only: the final call on any report.
 router.patch("/:id", requireAdmin, writeLimiter, async (req, res, next) => {
   try {
     const { status, severity, category } = req.body || {};

@@ -1,9 +1,11 @@
 const express = require("express");
-const { pool } = require("../../db");
-const { requireAdmin } = require("../auth");
+const { pool } = require("../db");
+const { requireAdmin } = require("../middleware/auth");
 
 const router = express.Router();
 
+// Admin-only. Returns whether a key is set, never the key itself, so it's
+// safe even if this response somehow got logged or cached somewhere.
 router.get("/settings", requireAdmin, async (req, res, next) => {
   try {
     const row = (await pool.query("SELECT deepseek_api_key FROM app_settings WHERE id = 1")).rows[0];
@@ -13,6 +15,9 @@ router.get("/settings", requireAdmin, async (req, res, next) => {
   }
 });
 
+// Admin-only. This is the ONLY place the DeepSeek key can ever be written —
+// it goes straight into the database and is never echoed back to any
+// client, admin included, past this point.
 router.put("/settings", requireAdmin, async (req, res, next) => {
   try {
     const { deepseekApiKey } = req.body || {};

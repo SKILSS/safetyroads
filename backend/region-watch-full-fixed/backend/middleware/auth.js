@@ -19,6 +19,9 @@ function requireAdmin(req, res, next) {
   });
 }
 
+// Like requireAuth, but doesn't fail if there's no token — req.user is just
+// null. Used for endpoints public users can hit, where we still want to
+// know who's logged in (e.g. to attribute a report to its author).
 function optionalAuth(req, res, next) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
