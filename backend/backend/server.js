@@ -6,10 +6,10 @@ const cors = require("cors");
 const compression = require("compression");
 
 const { pool, initSchema } = require("./db");
-const { apiLimiter, authLimiter, authSlowDown } = require("./middleware/security");
-const authRoutes = require("./routes/auth");
+const { apiLimiter, authLimiter, authSlowDown } = require("./backend/middleware/security");
+const authRoutes = require("./backend/routes/auth");
 const problemsRoutes = require("./routes/problems");
-const adminRoutes = require("./routes/admin");
+const adminRoutes = require("./backend/routes/admin");
 
 const app = express();
 app.set("trust proxy", 1);
