@@ -7,7 +7,7 @@ const compression = require("compression");
 
 const { pool, initSchema } = require("./backend/db");
 const { apiLimiter, authLimiter, authSlowDown } = require("./backend/middleware/security");
-const authRoutes = require("./routes/auth");
+const authRoutes = require("./auth");
 const problemsRoutes = require("./routes/problems");
 const adminRoutes = require("./routes/admin");
 
