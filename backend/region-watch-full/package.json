@@ -4,9 +4,6 @@
   "description": "RegionWatch API — user accounts, single admin, server-held DeepSeek key, rate limiting.",
   "main": "server.js",
   "type": "commonjs",
-  "engines": {
-    "node": ">=18.0.0"
-  },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",

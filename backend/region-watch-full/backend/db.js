@@ -7,14 +7,6 @@ const pool = new Pool({
   idleTimeoutMillis: 30000,
 });
 
-// CRITICAL: without this listener, any dropped/idle connection (common on
-// free-tier Postgres) fires an 'error' event on the pool with no handler,
-// which is an uncaught exception in Node and kills the whole process.
-// That's what was taking the entire site down, not just DB-dependent routes.
-pool.on("error", (err) => {
-  console.error("Unexpected Postgres pool error (connection recovered, process kept alive):", err);
-});
-
 async function initSchema() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (

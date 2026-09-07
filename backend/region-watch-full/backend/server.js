@@ -5,11 +5,14 @@ const helmet = require("helmet");
 const cors = require("cors");
 const compression = require("compression");
 
-const { pool, initSchema } = require("./backend/db");
-const { apiLimiter, authLimiter, authSlowDown } = require("./backend/middleware/security");
-const authRoutes = require("./auth");
+const { pool, initSchema } = require("./db");
+const { ensureAdmin } = require("./scripts/ensure-admin");
+const { apiLimiter, authLimiter, authSlowDown } = require("./middleware/security");
+const authRoutes = require("./routes/auth");
 const problemsRoutes = require("./routes/problems");
 const adminRoutes = require("./routes/admin");
+
+if (!process.env.DATABASE_URL) { console.error("DATABASE_URL is not set."); process.exit(1); }
 
 const app = express();
 app.set("trust proxy", 1); // needed behind Render/Railway/Cloudflare for real client IPs
@@ -34,46 +37,18 @@ app.use("/api/admin", adminRoutes);
 app.use(express.static(path.join(__dirname, "..", "frontend")));
 app.get("*", (req, res, next) => {
   if (req.path.startsWith("/api")) return next();
-  res.sendFile(path.join(__dirname, "..", "frontend", "index.html"), (err) => {
-    // sendFile's own error callback, so a missing/misplaced frontend build
-    // gives a clear log line pointing at the real cause instead of a bare
-    // "Internal server error" with no context.
-    if (err) {
-      console.error("Could not send frontend/index.html — is the frontend/ folder deployed alongside backend/?", err);
-      next(err);
-    }
-  });
-});
-
-app.use((req, res) => {
-  res.status(404).json({ error: "Not found." });
+  res.sendFile(path.join(__dirname, "..", "frontend", "index.html"));
 });
 
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(err.status || 500).json({ error: "Internal server error." });
-});
-
-// Last-resort safety nets: log and keep running instead of a silent crash.
-// The real fixes are try/catch in every route (done) and pool.on('error')
-// in db.js (done) — these are just insurance against anything missed.
-process.on("unhandledRejection", (reason) => {
-  console.error("Unhandled promise rejection (process kept alive):", reason);
-});
-process.on("uncaughtException", (err) => {
-  console.error("Uncaught exception (process kept alive):", err);
+  res.status(500).json({ error: "Internal server error." });
 });
 
 const port = process.env.PORT || 8080;
-const requiredEnv = ["DATABASE_URL", "JWT_SECRET"];
-const missingEnv = requiredEnv.filter((k) => !process.env[k]);
-
 async function start() {
-  if (missingEnv.length) {
-    console.error(`Missing required environment variable(s): ${missingEnv.join(", ")}. Set them in Render → Environment, then redeploy.`);
-    process.exit(1);
-  }
   await initSchema();
+  await ensureAdmin();
   app.listen(port, () => console.log(`RegionWatch listening on :${port}`));
 }
 start().catch((err) => { console.error("Failed to start:", err); process.exit(1); });
