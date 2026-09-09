@@ -5,12 +5,12 @@ const helmet = require("helmet");
 const cors = require("cors");
 const compression = require("compression");
 
-const { pool, initSchema } = require("./db");
-const { ensureAdmin } = require("./scripts/ensure-admin");
-const { apiLimiter, authLimiter, authSlowDown } = require("./middleware/security");
-const authRoutes = require("./routes/auth");
-const problemsRoutes = require("./routes/problems");
-const adminRoutes = require("./routes/admin");
+const { pool, initSchema } = require("./backend/db");
+const { ensureAdmin } = require("./backend/scripts/ensure-admin");
+const { apiLimiter, authLimiter, authSlowDown } = require("./backend/middleware/security");
+const authRoutes = require("./backend/routes/auth");
+const problemsRoutes = require("./backend/routes/problems");
+const adminRoutes = require("./backend/routes/admin");
 
 if (!process.env.DATABASE_URL) { console.error("DATABASE_URL is not set."); process.exit(1); }
 
