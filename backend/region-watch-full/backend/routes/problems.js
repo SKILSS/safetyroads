@@ -2,25 +2,26 @@ const express = require("express");
 const { pool } = require("../db");
 const { requireAuth, requireAdmin } = require("../middleware/auth");
 const { writeLimiter } = require("../middleware/security");
+const { asyncHandler } = require("../middleware/asyncHandler");
 
 const router = express.Router();
 
 // Public: anyone can read the map/feed — no login needed to browse.
-router.get("/", async (req, res) => {
+router.get("/", asyncHandler(async (req, res) => {
   const { region } = req.query;
   const result = region
     ? await pool.query("SELECT * FROM problems WHERE region = $1 ORDER BY created_at DESC LIMIT 300", [region])
     : await pool.query("SELECT * FROM problems ORDER BY created_at DESC LIMIT 300");
   res.set("Cache-Control", "public, max-age=15");
   res.json(result.rows);
-});
+}));
 
 // Logged-in users only: submitting a report requires an account, so a
 // single bad actor can't anonymously flood the feed or burn through your
 // DeepSeek quota. The DeepSeek key itself never leaves the server — the
 // browser just sends the report; this endpoint calls DeepSeek itself using
 // the key an admin set via PUT /api/admin/settings.
-router.post("/", requireAuth, writeLimiter, async (req, res) => {
+router.post("/", requireAuth, writeLimiter, asyncHandler(async (req, res) => {
   const { region, category, severity, titleRu, titleEn, imageDataUrl } = req.body || {};
   if (!region || !titleRu || !titleEn) {
     return res.status(400).json({ error: "region, titleRu and titleEn are required." });
@@ -60,10 +61,10 @@ router.post("/", requireAuth, writeLimiter, async (req, res) => {
     [region, category || "other", severity || "med", titleRu, titleEn, imageDataUrl || null, aiVerdict, req.user.id]
   );
   res.status(201).json(result.rows[0]);
-});
+}));
 
 // Admin-only: the final call on any report.
-router.patch("/:id", requireAdmin, writeLimiter, async (req, res) => {
+router.patch("/:id", requireAdmin, writeLimiter, asyncHandler(async (req, res) => {
   const { status, severity, category } = req.body || {};
   const result = await pool.query(
     `UPDATE problems SET status = COALESCE($1, status), severity = COALESCE($2, severity), category = COALESCE($3, category)
@@ -72,11 +73,11 @@ router.patch("/:id", requireAdmin, writeLimiter, async (req, res) => {
   );
   if (!result.rows[0]) return res.status(404).json({ error: "Not found." });
   res.json(result.rows[0]);
-});
+}));
 
-router.delete("/:id", requireAdmin, writeLimiter, async (req, res) => {
+router.delete("/:id", requireAdmin, writeLimiter, asyncHandler(async (req, res) => {
   await pool.query("DELETE FROM problems WHERE id = $1", [req.params.id]);
   res.status(204).end();
-});
+}));
 
 module.exports = router;

@@ -2,6 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { pool } = require("../db");
+const { asyncHandler } = require("../middleware/asyncHandler");
 
 const router = express.Router();
 
@@ -12,7 +13,7 @@ function issueToken(user) {
 // Anyone can register — always as a plain user. There is no "role" field
 // accepted from the request body, so nobody can register themselves as
 // admin through this endpoint.
-router.post("/register", async (req, res) => {
+router.post("/register", asyncHandler(async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password || password.length < 8) {
     return res.status(400).json({ error: "Email and a password of at least 8 characters are required." });
@@ -27,9 +28,9 @@ router.post("/register", async (req, res) => {
   );
   const user = result.rows[0];
   res.status(201).json({ token: issueToken(user), user: { email: user.email, role: user.role } });
-});
+}));
 
-router.post("/login", async (req, res) => {
+router.post("/login", asyncHandler(async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: "Email and password required." });
 
@@ -39,6 +40,6 @@ router.post("/login", async (req, res) => {
     return res.status(401).json({ error: "Invalid email or password." });
   }
   res.json({ token: issueToken(user), user: { email: user.email, role: user.role } });
-});
+}));
 
 module.exports = router;

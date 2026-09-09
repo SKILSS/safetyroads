@@ -171,7 +171,7 @@ textarea, select, input[type="text"], input[type="password"] {
 .verdict-title { font-weight: 500; margin-bottom: 2px; }
 
 .settings-wrap { max-width: 560px; display: flex; flex-direction: column; gap: 16px; }
-.settings-row { display: flex; align-items: center; justify-content: between; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
 .segmented { display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .segmented button { padding: 6px 12px; font-size: 14px; background: transparent; color: var(--text); border: none; cursor: pointer; }
 .segmented button.active { background: var(--accent); color: var(--accent-text); }

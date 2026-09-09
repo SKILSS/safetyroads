@@ -5,12 +5,12 @@ const helmet = require("helmet");
 const cors = require("cors");
 const compression = require("compression");
 
-const { pool, initSchema } = require("./db/db");
-const { ensureAdmin } = require("./backend/scripts/ensure-admin");
-const { apiLimiter, authLimiter, authSlowDown } = require("./backend/middleware/security");
-const authRoutes = require("./backend/routes/auth");
-const problemsRoutes = require("./backend/routes/problems");
-const adminRoutes = require("./backend/routes/admin");
+const { pool, initSchema } = require("./db");
+const { ensureAdmin } = require("./scripts/ensure-admin");
+const { apiLimiter, authLimiter, authSlowDown } = require("./middleware/security");
+const authRoutes = require("./routes/auth");
+const problemsRoutes = require("./routes/problems");
+const adminRoutes = require("./routes/admin");
 
 if (!process.env.DATABASE_URL) { console.error("DATABASE_URL is not set."); process.exit(1); }
 
@@ -21,8 +21,14 @@ app.use(helmet({ contentSecurityPolicy: false })); // CSP off by default so the 
 app.use(compression());
 app.use(express.json({ limit: "3mb" })); // covers a base64 photo without allowing huge payload floods
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(",").filter(Boolean);
-app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : true, credentials: false }));
+// "*" is treated as an explicit wildcard here: the cors package does NOT
+// recognize "*" inside an origin array as a wildcard, it only matches it
+// literally (which no real browser ever sends), so ALLOWED_ORIGINS=* would
+// otherwise silently block every cross-origin request instead of allowing
+// them as the README says.
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean);
+const corsOrigin = allowedOrigins.length === 0 || allowedOrigins.includes("*") ? true : allowedOrigins;
+app.use(cors({ origin: corsOrigin, credentials: false }));
 
 app.use("/api", apiLimiter);
 app.use("/api/auth/login", authLimiter, authSlowDown);
