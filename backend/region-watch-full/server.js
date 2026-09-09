@@ -8,9 +8,9 @@ const compression = require("compression");
 const { pool, initSchema } = require("./backend/db");
 const { ensureAdmin } = require("./backend/scripts/ensure-admin");
 const { apiLimiter, authLimiter, authSlowDown } = require("./backend/middleware/security");
-const authRoutes = require("./backend/routes/auth");
-const problemsRoutes = require("./backend/routes/problems");
-const adminRoutes = require("./backend/routes/admin");
+const authRoutes = require("./routes/auth");
+const problemsRoutes = require("./routes/problems");
+const adminRoutes = require("./routes/admin");
 
 if (!process.env.DATABASE_URL) { console.error("DATABASE_URL is not set."); process.exit(1); }
 
