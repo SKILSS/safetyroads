@@ -5,8 +5,8 @@ const helmet = require("helmet");
 const cors = require("cors");
 const compression = require("compression");
 
-// Исправленные пути - db.js находится на уровень выше
-const { pool, initSchema } = require("../db");
+// Импорты с правильными путями
+const { pool, initSchema } = require("./db");
 const ensureAdmin = require("./scripts/ensure-admin");
 const { apiLimiter, authLimiter, authSlowDown } = require("./middleware/security");
 const authRoutes = require("./routes/auth");
@@ -39,13 +39,13 @@ app.use("/api/auth", authRoutes);
 app.use("/api/problems", problemsRoutes);
 app.use("/api/admin", adminRoutes);
 
-// Serve frontend - frontend папка находится на уровень выше
-app.use(express.static(path.join(__dirname, "../frontend")));
+// Раздача статики из папки frontend
+app.use(express.static(path.join(__dirname, "frontend")));
 
-// Все не-API запросы отдаем index.html
+// Все запросы, не начинающиеся с /api, отправляют index.html
 app.get("*", (req, res, next) => {
     if (req.path.startsWith("/api")) return next();
-    res.sendFile(path.join(__dirname, "../frontend", "index.html"));
+    res.sendFile(path.join(__dirname, "frontend", "index.html"));
 });
 
 // Обработка ошибок
