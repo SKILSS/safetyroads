@@ -5,7 +5,8 @@ const helmet = require("helmet");
 const cors = require("cors");
 const compression = require("compression");
 
-const { pool, initSchema } = require("./db");
+// Исправленные пути - db.js находится на уровень выше
+const { pool, initSchema } = require("../db");
 const ensureAdmin = require("./scripts/ensure-admin");
 const { apiLimiter, authLimiter, authSlowDown } = require("./middleware/security");
 const authRoutes = require("./routes/auth");
@@ -38,13 +39,16 @@ app.use("/api/auth", authRoutes);
 app.use("/api/problems", problemsRoutes);
 app.use("/api/admin", adminRoutes);
 
-// Serve the frontend from the same server
+// Serve frontend - frontend папка находится на уровень выше
 app.use(express.static(path.join(__dirname, "../frontend")));
+
+// Все не-API запросы отдаем index.html
 app.get("*", (req, res, next) => {
     if (req.path.startsWith("/api")) return next();
     res.sendFile(path.join(__dirname, "../frontend", "index.html"));
 });
 
+// Обработка ошибок
 app.use((err, req, res, next) => {
     console.error(err);
     res.status(500).json({ error: "Internal server error." });
