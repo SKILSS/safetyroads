@@ -1,79 +1,29 @@
 require("dotenv").config();
 
-const fs = require("fs");
 const path = require("path");
 const express = require("express");
 const helmet = require("helmet");
 const cors = require("cors");
 const compression = require("compression");
 
-// ---------- Helper ----------
-function loadModule(paths) {
-  for (const p of paths) {
-    const fullPath = path.resolve(__dirname, p);
-
-    if (
-      fs.existsSync(fullPath + ".js") ||
-      fs.existsSync(fullPath) ||
-      fs.existsSync(fullPath + "/index.js")
-    ) {
-      return require(fullPath);
-    }
-  }
-
-  throw new Error(
-    "Module not found. Tried:\n" +
-      paths.map((p) => " - " + path.resolve(__dirname, p)).join("\n")
-  );
-}
-
-// ---------- Database ----------
-const { pool, initSchema } = loadModule([
-  "./db",
-  "./db/db",
-  "./backend/db",
-]);
-
-// ---------- Routes ----------
-const authRoutes = loadModule([
-  "./routes/auth",
-  "./маршруты/auth",
-  "./backend/routes/auth",
-]);
-
-const problemsRoutes = loadModule([
-  "./routes/problems",
-  "./маршруты/problems",
-  "./backend/routes/problems",
-]);
-
-const adminRoutes = loadModule([
-  "./routes/admin",
-  "./маршруты/admin",
-  "./backend/routes/admin",
-]);
-
-// ---------- Security ----------
-const security = loadModule([
-  "./middleware/security",
-  "./промежуточное программное обеспечение/security",
-  "./backend/middleware/security",
-]);
-
+const { pool, initSchema } = require("./db");
 const {
   apiLimiter,
   authLimiter,
-  authSlowDown,
-} = security;
+  authSlowDown
+} = require("./middleware/security");
 
-// ---------- App ----------
+const authRoutes = require("./routes/auth");
+const problemsRoutes = require("./routes/problems");
+const adminRoutes = require("./routes/admin");
+
 const app = express();
 
 app.set("trust proxy", 1);
 
 app.use(
   helmet({
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: false
   })
 );
 
@@ -81,24 +31,22 @@ app.use(compression());
 
 app.use(
   express.json({
-    limit: "3mb",
+    limit: "3mb"
   })
 );
 
-// ---------- CORS ----------
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
   .split(",")
-  .map((x) => x.trim())
+  .map(x => x.trim())
   .filter(Boolean);
 
 app.use(
   cors({
     origin: allowedOrigins.length ? allowedOrigins : true,
-    credentials: false,
+    credentials: false
   })
 );
 
-// ---------- API limits ----------
 app.use("/api", apiLimiter);
 
 app.use(
@@ -113,67 +61,45 @@ app.use(
   authSlowDown
 );
 
-// ---------- Health ----------
 app.get("/health", (req, res) => {
   res.json({
-    ok: true,
-    service: "RegionWatch",
+    ok: true
   });
 });
 
-// ---------- API ----------
 app.use("/api/auth", authRoutes);
 app.use("/api/problems", problemsRoutes);
 app.use("/api/admin", adminRoutes);
 
-// ---------- Frontend ----------
-const frontendCandidates = [
-  "../frontend",
-  "./frontend",
-  "../Src/внешний интерфейс",
-  "./Src/внешний интерфейс",
-];
+// Frontend
+const frontendPath = path.join(
+  __dirname,
+  "..",
+  "frontend"
+);
 
-let frontendPath = null;
+app.use(express.static(frontendPath));
 
-for (const candidate of frontendCandidates) {
-  const possible = path.resolve(__dirname, candidate);
-
-  if (
-    fs.existsSync(possible) &&
-    fs.existsSync(path.join(possible, "index.html"))
-  ) {
-    frontendPath = possible;
-    break;
+app.get("*", (req, res, next) => {
+  if (req.path.startsWith("/api")) {
+    return next();
   }
-}
 
-if (frontendPath) {
-  console.log("Frontend:", frontendPath);
+  res.sendFile(
+    path.join(frontendPath, "index.html")
+  );
+});
 
-  app.use(express.static(frontendPath));
-
-  app.get("*", (req, res, next) => {
-    if (req.path.startsWith("/api")) {
-      return next();
-    }
-
-    res.sendFile(path.join(frontendPath, "index.html"));
-  });
-} else {
-  console.warn("Frontend index.html was not found.");
-}
-
-// ---------- Error handler ----------
+// Error handler
 app.use((err, req, res, next) => {
   console.error(err);
 
   res.status(500).json({
-    error: "Internal server error.",
+    error: "Internal server error."
   });
 });
 
-// ---------- Start ----------
+// Render provides PORT
 const port = process.env.PORT || 8080;
 
 async function start() {
@@ -181,7 +107,9 @@ async function start() {
     await initSchema();
 
     app.listen(port, "0.0.0.0", () => {
-      console.log(`RegionWatch listening on port ${port}`);
+      console.log(
+        `RegionWatch listening on port ${port}`
+      );
     });
   } catch (err) {
     console.error("Failed to start:", err);
@@ -189,21 +117,14 @@ async function start() {
   }
 }
 
-// ---------- Shutdown ----------
+start();
+
 process.on("SIGTERM", async () => {
-  try {
-    await pool.end();
-  } finally {
-    process.exit(0);
-  }
+  await pool.end();
+  process.exit(0);
 });
 
 process.on("SIGINT", async () => {
-  try {
-    await pool.end();
-  } finally {
-    process.exit(0);
-  }
+  await pool.end();
+  process.exit(0);
 });
-
-start();
