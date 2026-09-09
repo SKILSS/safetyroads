@@ -1,6 +1,6 @@
 require("dotenv").config();
 const bcrypt = require("bcryptjs");
-const { pool, initSchema } = require("../db");
+const { pool, initSchema } = require("../../db");
 
 async function ensureAdmin() {
   const email = process.env.ADMIN_EMAIL;

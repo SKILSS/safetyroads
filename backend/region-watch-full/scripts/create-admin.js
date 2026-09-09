@@ -4,7 +4,7 @@
 // the public /register endpoint always creates plain 'user' accounts.
 require("dotenv").config();
 const bcrypt = require("bcryptjs");
-const { pool, initSchema } = require("../db");
+const { pool, initSchema } = require("../../db");
 
 async function main() {
   const email = process.env.ADMIN_EMAIL;
