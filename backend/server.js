@@ -31,10 +31,10 @@ app.use("/api/problems", problemsRoutes);
 app.use("/api/admin", adminRoutes);
 
 // Serve the frontend from the same server, so one deploy = the whole site.
-app.use(express.static(path.join(__dirname, "..", "frontend")));
+app.use(express.static(path.join(__dirname, "frontend")));
 app.get("*", (req, res, next) => {
   if (req.path.startsWith("/api")) return next();
-  res.sendFile(path.join(__dirname, "..", "frontend", "index.html"));
+  res.sendFile(path.join(__dirname, "frontend", "index.html"));
 });
 
 app.use((err, req, res, next) => {
