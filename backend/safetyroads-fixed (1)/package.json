@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "create-admin": "node scripts/create-admin.js"
+    "create-admin": "node scripts/create-admin.js",
+    "sync-stations": "node scripts/sync-stations.js",
+    "sync-prices": "node scripts/sync-prices.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

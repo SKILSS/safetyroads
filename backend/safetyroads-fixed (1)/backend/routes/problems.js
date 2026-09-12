@@ -21,10 +21,21 @@ router.get("/", async (req, res) => {
 // browser just sends the report; this endpoint calls DeepSeek itself using
 // the key an admin set via PUT /api/admin/settings.
 router.post("/", requireAuth, writeLimiter, async (req, res) => {
-  const { region, category, severity, titleRu, titleEn, imageDataUrl } = req.body || {};
+  const { region, category, severity, titleRu, titleEn, imageDataUrl, lat, lng, isRoad, route } = req.body || {};
   if (!region || !titleRu || !titleEn) {
     return res.status(400).json({ error: "region, titleRu and titleEn are required." });
   }
+
+  // Two shapes of location are accepted:
+  //  - a single point: lat/lng (a pin on the map)
+  //  - a whole bad road: isRoad=true + route = [[lat,lng], [lat,lng], ...]
+  //    (drawn as a solid red line instead of a pin)
+  const roadMode = !!isRoad && Array.isArray(route) && route.length >= 2;
+  const safeRoute = roadMode
+    ? route.filter((p) => Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]))
+    : null;
+  const safeLat = Number.isFinite(lat) ? lat : (roadMode && safeRoute.length ? safeRoute[0][0] : null);
+  const safeLng = Number.isFinite(lng) ? lng : (roadMode && safeRoute.length ? safeRoute[0][1] : null);
 
   let aiVerdict = null;
   const settings = (await pool.query("SELECT deepseek_api_key FROM app_settings WHERE id = 1")).rows[0];
@@ -55,9 +66,12 @@ router.post("/", requireAuth, writeLimiter, async (req, res) => {
   }
 
   const result = await pool.query(
-    `INSERT INTO problems (region, category, severity, status, title_ru, title_en, image_data, ai_verdict, created_by)
-     VALUES ($1,$2,$3,'new',$4,$5,$6,$7,$8) RETURNING *`,
-    [region, category || "other", severity || "med", titleRu, titleEn, imageDataUrl || null, aiVerdict, req.user.id]
+    `INSERT INTO problems (region, category, severity, status, title_ru, title_en, image_data, ai_verdict, lat, lng, is_road, route, created_by)
+     VALUES ($1,$2,$3,'new',$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+    [
+      region, category || "other", severity || "med", titleRu, titleEn, imageDataUrl || null, aiVerdict,
+      safeLat, safeLng, roadMode, safeRoute ? JSON.stringify(safeRoute) : null, req.user.id,
+    ]
   );
   res.status(201).json(result.rows[0]);
 });

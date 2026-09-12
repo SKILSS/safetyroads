@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SafetyRoad — Дорожный дозор</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            transition: background 0.2s, color 0.2s, border 0.2s;
+        }
+        body {
+            background: #0b0e14;
+            color: #e8edf5;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .app {
+            width: 100%;
+            max-width: 480px;
+            background: #131a24;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+        }
+        .header {
+            padding: 16px 20px 10px;
+            background: #1c2532;
+            border-bottom: 1px solid #2a3548;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-weight: 700;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #f6b83d, #f5a623);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .logo small {
+            font-size: 0.65rem;
+            -webkit-text-fill-color: #8899bb;
+            color: #8899bb;
+            margin-left: 6px;
+        }
+        .user-badge {
+            background: #2e3b4e;
+            padding: 4px 14px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            color: #b0c7e0;
+            cursor: pointer;
+        }
+        .tabs {
+            display: flex;
+            background: #0f1722;
+            border-bottom: 1px solid #2a3548;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .tab {
+            flex: 1;
+            padding: 12px 0;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #7a8aa0;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .tab.active {
+            color: #f5c542;
+            border-bottom-color: #f5c542;
+            background: #1a2330;
+        }
+        .content {
+            flex: 1;
+            padding: 16px 16px 80px;
+            overflow-y: auto;
+        }
+        .page {
+            display: none;
+            animation: fadeIn 0.2s ease;
+        }
+        .page.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0.3;
+                transform: translateY(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        #map {
+            height: 340px;
+            border-radius: 16px;
+            border: 1px solid #2f3d52;
+            margin-bottom: 10px;
+            background: #1a2535;
+            cursor: crosshair;
+        }
+        .map-footer {
+            font-size: 0.8rem;
+            color: #7e92b0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            margin-bottom: 12px;
+        }
+        .map-hint {
+            background: #1a2535;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            color: #f5a623;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+        .gas-prices {
+            background: #1a2535;
+            padding: 8px 14px;
+            border-radius: 40px;
+            display: inline-block;
+            font-size: 0.8rem;
+            color: #b0c7e0;
+        }
+        .gas-prices span {
+            margin-right: 12px;
+        }
+        .problem-item {
+            background: #1b2635;
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            border-left: 5px solid #f5a623;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        .problem-item .title {
+            font-weight: 600;
+            font-size: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .problem-item .meta {
+            font-size: 0.75rem;
+            color: #9aafcc;
+            margin-top: 6px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .problem-item .coords {
+            font-size: 0.7rem;
+            color: #7e92b0;
+            margin-top: 4px;
+            font-family: monospace;
+        }
+        .badge {
+            padding: 2px 14px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .badge.ai {
+            background: #2d5a3d;
+            color: #b0e0b0;
+        }
+        .badge.pending {
+            background: #6a5a2a;
+            color: #f5d98a;
+        }
+        .badge.new {
+            background: #4a5a7a;
+            color: #b0c7e0;
+        }
+        .add-form {
+            background: #1f2d40;
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 20px;
+            border: 1px dashed #3e5570;
+        }
+        .add-form input,
+        .add-form textarea,
+        .add-form select,
+        .add-form button {
+            width: 100%;
+            margin-top: 8px;
+            padding: 10px 14px;
+            border-radius: 30px;
+            border: 1px solid #31445c;
+            background: #101b28;
+            color: #dce6f0;
+            font-size: 0.9rem;
+        }
+        .add-form select option {
+            background: #1a2535;
+        }
+        .add-form .coord-row {
+            display: flex;
+            gap: 8px;
+        }
+        .add-form .coord-row input {
+            flex: 1;
+        }
+        .add-form button {
+            background: #f5a623;
+            color: #111;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+        .add-form button:hover {
+            background: #e0961a;
+        }
+        .add-form button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .file-input {
+            padding: 6px 10px;
+            background: #101b28;
+            border: 1px solid #3e5570;
+            border-radius: 30px;
+            color: #b0c7e0;
+        }
+        .settings-card {
+            background: #1a2535;
+            border-radius: 16px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+        }
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #29394e;
+        }
+        .settings-row:last-child {
+            border-bottom: none;
+        }
+        .theme-group {
+            display: flex;
+            gap: 12px;
+        }
+        .theme-btn {
+            background: #26344a;
+            border: none;
+            padding: 6px 18px;
+            border-radius: 40px;
+            color: #b0c7e0;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .theme-btn.active {
+            background: #f5a623;
+            color: #0b0e14;
+        }
+        .chat-support {
+            background: #1f2d40;
+            padding: 6px 14px;
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            max-width: 200px;
+        }
+        .chat-support input {
+            background: transparent;
+            border: none;
+            color: #dce6f0;
+            width: 100%;
+            outline: none;
+        }
+        .chat-support input::placeholder {
+            color: #5a7290;
+        }
+        .chat-support span {
+            cursor: pointer;
+            color: #f5a623;
+            font-weight: bold;
+        }
+        .register-box {
+            background: #1a2535;
+            border-radius: 20px;
+            padding: 20px;
+            margin-top: 10px;
+        }
+        .register-box input {
+            width: 100%;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            border-radius: 40px;
+            border: 1px solid #31445c;
+            background: #101b28;
+            color: #dce6f0;
+        }
+        .register-box .btn-reg {
+            background: #3a6ea5;
+            border: none;
+            padding: 12px;
+            border-radius: 40px;
+            font-weight: 700;
+            color: #fff;
+            width: 100%;
+            cursor: pointer;
+        }
+        .register-box .btn-reg:hover {
+            background: #2f5a8a;
+        }
+        .register-box .btn-logout {
+            background: #6a3a3a;
+            border: none;
+            padding: 12px;
+            border-radius: 40px;
+            font-weight: 700;
+            color: #fff;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .register-box .btn-logout:hover {
+            background: #5a2a2a;
+        }
+        .reg-msg {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #f5a623;
+        }
+        .reg-msg.success {
+            color: #8bc34a;
+        }
+        .reg-msg.error {
+            color: #f44336;
+        }
+        .user-status {
+            margin-top: 12px;
+            color: #b0c7e0;
+            font-size: 0.9rem;
+        }
+        .console {
+            background: #0c141f;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-family: monospace;
+            font-size: 0.7rem;
+            color: #b0c0d0;
+            margin-top: 12px;
+            border-left: 3px solid #f5a623;
+        }
+        .footer {
+            text-align: center;
+            font-size: 0.6rem;
+            color: #4a607a;
+            padding: 8px 0;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #7e92b0;
+        }
+        .selected-marker-info {
+            background: #1a2535;
+            border-radius: 12px;
+            padding: 8px 14px;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            color: #f5a623;
+            border: 1px solid #f5a623;
+        }
+        /* Светлая тема */
+        body.light .app {
+            background: #eef2f7;
+        }
+        body.light .header {
+            background: #d9e2ed;
+            border-bottom-color: #b8c9dd;
+        }
+        body.light .logo small {
+            -webkit-text-fill-color: #3a5a7a;
+            color: #3a5a7a;
+        }
+        body.light .tab {
+            color: #2f4a6a;
+        }
+        body.light .tab.active {
+            background: #d4e0ed;
+            color: #1f3a55;
+            border-bottom-color: #1f3a55;
+        }
+        body.light .content {
+            background: #eef2f7;
+        }
+        body.light .problem-item {
+            background: #ffffff;
+            border-left-color: #d48c1a;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+        body.light .problem-item .meta {
+            color: #3a5a7a;
+        }
+        body.light .add-form {
+            background: #d9e2ed;
+            border-color: #aabbd0;
+        }
+        body.light .add-form input,
+        body.light .add-form textarea,
+        body.light .add-form select {
+            background: #f4f8ff;
+            color: #1a2a3a;
+            border-color: #b0c4dd;
+        }
+        body.light .settings-card {
+            background: #d9e2ed;
+        }
+        body.light .settings-row {
+            border-color: #b8c9dd;
+        }
+        body.light .theme-btn {
+            background: #c0d0e0;
+            color: #1a2a3a;
+        }
+        body.light .theme-btn.active {
+            background: #d48c1a;
+            color: #fff;
+        }
+        body.light .register-box {
+            background: #d9e2ed;
+        }
+        body.light .register-box input {
+            background: #f4f8ff;
+            color: #1a2a3a;
+            border-color: #b0c4dd;
+        }
+        body.light .chat-support {
+            background: #d0ddee;
+        }
+        body.light .user-status {
+            color: #1f3a55;
+        }
+        body.light .map-footer {
+            color: #3a5a7a;
+        }
+        body.light #map {
+            border-color: #b8c9dd;
+        }
+        body.light .console {
+            background: #d9e2ed;
+            color: #1f3a55;
+        }
+        body.light .badge {
+            background: #c0d0e0;
+            color: #1f3a55;
+        }
+        body.light .badge.ai {
+            background: #b0d0b0;
+            color: #1a3a1a;
+        }
+        body.light .badge.pending {
+            background: #e8d090;
+            color: #3a3a1a;
+        }
+        body.light .gas-prices {
+            background: #d9e2ed;
+            color: #1f3a55;
+        }
+        body.light .map-hint {
+            background: #d9e2ed;
+            color: #d48c1a;
+        }
+        body.light .selected-marker-info {
+            background: #d9e2ed;
+            border-color: #d48c1a;
+            color: #1f3a55;
+        }
+        @media (max-width: 480px) {
+            .app {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- ШАПКА -->
+        <div class="header">
+            <div class="logo">SafetyRoad <small>дорожный дозор</small></div>
+            <div class="user-badge" id="userBadge" onclick="document.getElementById('page-settings').scrollIntoView()">👤 гость</div>
+        </div>
+
+        <!-- ВКЛАДКИ -->
+        <div class="tabs">
+            <button class="tab active" data-tab="map">🗺 Карта</button>
+            <button class="tab" data-tab="problems">⚠️ Проблемы</button>
+            <button class="tab" data-tab="settings">⚙️ Настройки</button>
+        </div>
+
+        <!-- КОНТЕНТ -->
+        <div class="content">
+            <!-- ===== КАРТА ===== -->
+            <div id="page-map" class="page active">
+                <div id="map"></div>
+                <div class="map-hint">🖱 Кликните на карту, чтобы выбрать место проблемы</div>
+                <div id="selectedCoords" class="selected-marker-info" style="display:none;">
+                    📍 Выбрано: <span id="coordDisplay">55.76, 37.64</span>
+                    <button onclick="clearSelectedPoint()" style="background:transparent;border:1px solid #f5a623;color:#f5a623;padding:2px 12px;border-radius:30px;cursor:pointer;margin-left:8px;">✕</button>
+                </div>
+                <div class="map-footer">
+                    <span>🔴 Красный кружок с "!" — проблема</span>
+                    <span>🔴 Красная линия — вся дорога плохая</span>
+                    <span>⛽ — АЗС (нажмите, чтобы увидеть цены)</span>
+                </div>
+            </div>
+
+            <!-- ===== ПРОБЛЕМЫ ===== -->
+            <div id="page-problems" class="page">
+                <div id="problemList">
+                    <div class="loading">⏳ Загрузка проблем...</div>
+                </div>
+
+                <div class="add-form">
+                    <h4 style="margin-bottom:4px;">➕ Сообщить о проблеме</h4>
+                    <input type="text" id="problemTitle" placeholder="Заголовок (например, Яма на дороге)" />
+                    <input type="text" id="problemRegion" placeholder="Регион (например, Москва)" />
+                    <select id="problemCategory">
+                        <option value="Дороги">🚧 Дороги</option>
+                        <option value="Освещение">💡 Освещение</option>
+                        <option value="ЖКХ">🏠 ЖКХ</option>
+                        <option value="Мусор">🗑 Мусор</option>
+                        <option value="other">📌 Другое</option>
+                    </select>
+                    <div class="coord-row">
+                        <input type="text" id="problemLat" placeholder="Широта (нажмите на карте)" readonly />
+                        <input type="text" id="problemLng" placeholder="Долгота (нажмите на карте)" readonly />
+                    </div>
+                    <button type="button" id="roadModeBtn" style="background:#26344a;color:#f5c542;">🚧 Обозначить всю дорогу (несколько точек)</button>
+                    <div id="roadModeHint" style="display:none;font-size:0.75rem;color:#f5a623;margin-top:6px;">
+                        Кликайте по карте, чтобы добавить точки дороги (<span id="roadPointCount">0</span>). Когда закончите — нажмите «Готово».
+                        <button type="button" id="roadModeDone" style="width:auto;display:inline-block;padding:4px 12px;margin:6px 4px 0 0;">✅ Готово</button>
+                        <button type="button" id="roadModeCancel" style="width:auto;display:inline-block;padding:4px 12px;margin:6px 0 0;background:#3a2020;">✕ Отмена</button>
+                    </div>
+                    <input type="file" id="problemFile" accept="image/*" class="file-input" />
+                    <button id="submitProblem">Отправить на проверку</button>
+                    <div style="font-size:0.7rem;color:#7e92b0;margin-top:6px;">
+                        🤖 ИИ проверит фото (если загружено) • <span style="color:#f5a623;">Кликните на карту</span> чтобы выбрать координаты
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== НАСТРОЙКИ ===== -->
+            <div id="page-settings" class="page">
+                <div class="settings-card">
+                    <div class="settings-row">
+                        <span>🌓 Тема</span>
+                        <div class="theme-group">
+                            <button class="theme-btn" data-theme="dark">Тёмная</button>
+                            <button class="theme-btn active" data-theme="light">Светлая</button>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <span>🌐 Язык</span>
+                        <span style="color:#b0c7e0;">Русский</span>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <div class="settings-row">
+                        <span>💬 Поддержка</span>
+                        <div class="chat-support">
+                            <input type="text" placeholder="Напишите..." id="chatInput" />
+                            <span id="chatSend">➤</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="register-box">
+                    <h4 style="margin-bottom:12px;">🔐 Вход / Регистрация</h4>
+                    <input type="email" id="regEmail" placeholder="Email" />
+                    <input type="password" id="regPass" placeholder="Пароль (мин. 8 символов)" />
+                    <button class="btn-reg" id="regButton">Зарегистрироваться</button>
+                    <button class="btn-reg" id="loginButton" style="background:#4a7a5a;">Войти</button>
+                    <button class="btn-logout" id="logoutButton" style="display:none;">Выйти</button>
+                    <div class="reg-msg" id="regMessage"></div>
+                    <div class="user-status" id="userStatusBox">👤 Вы: гость</div>
+                </div>
+
+                <div class="settings-card" id="adminCard" style="display:none;">
+                    <h4 style="margin-bottom:10px;">🛠 Админ-панель</h4>
+                    <div class="settings-row" style="display:block;">
+                        <span>🤖 Ключ DeepSeek (проверка фото ИИ)</span>
+                        <input type="password" id="deepseekKeyInput" placeholder="Оставьте пустым, чтобы не менять" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
+                        <div id="deepseekKeyStatus" style="font-size:0.75rem;color:#7e92b0;margin-top:6px;"></div>
+                        <button type="button" id="saveDeepseekKey" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#f5a623;color:#111;font-weight:700;cursor:pointer;">Сохранить ключ</button>
+                    </div>
+                    <div class="settings-row" style="display:block;border-top:1px solid #29394e;padding-top:12px;">
+                        <span>⛽ Автообновление цен (провайдер, напр. Benzup)</span>
+                        <input type="text" id="priceApiUrlInput" placeholder="URL провайдера, напр. https://api.omt-consult.ru/v2/stations" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
+                        <input type="password" id="priceApiKeyInput" placeholder="Bearer-токен провайдера (оставьте пустым, чтобы не менять)" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
+                        <div id="priceApiStatus" style="font-size:0.75rem;color:#7e92b0;margin-top:6px;"></div>
+                        <div style="font-size:0.7rem;color:#7e92b0;margin-top:4px;">Бесплатного живого API цен по АЗС в РФ нет — это платный провайдер. После сохранения запускайте <code>npm run sync-prices</code> по расписанию (cron), чтобы цены обновлялись сами.</div>
+                        <button type="button" id="savePriceApi" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#f5a623;color:#111;font-weight:700;cursor:pointer;">Сохранить провайдера цен</button>
+                    </div>
+                    <div class="settings-row" style="display:block;border-top:1px solid #29394e;padding-top:12px;">
+                        <span>⛽ Добавить АЗС вручную</span>
+                        <input type="text" id="stationName" placeholder="Название АЗС" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
+                        <div style="font-size:0.75rem;color:#7e92b0;margin-top:6px;">Кликните на карте, затем нажмите «Добавить АЗС в выбранной точке»</div>
+                        <button type="button" id="addStationBtn" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#3a6ea5;color:#fff;font-weight:700;cursor:pointer;">➕ Добавить АЗС в выбранной точке</button>
+                    </div>
+                </div>
+
+                <div class="console">
+                    ⚙️ Console: <span id="consoleMessage">Система готова</span>
+                </div>
+                <div class="footer">SafetyRoad — данные обновляются 24/7</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+    </script>
+    <script>
+        (function() {
+            'use strict';
+
+            // ===== КОНФИГ =====
+            const API_URL = window.location.origin + '/api';
+            // Для локальной разработки: const API_URL = 'http://localhost:8080/api';
+            const REFRESH_MS = 45000; // как часто перечитывать проблемы/АЗС с сервера
+
+            // ===== СОСТОЯНИЕ =====
+            let token = localStorage.getItem('token');
+            let user = JSON.parse(localStorage.getItem('user') || 'null'); // {email, role} | null
+            let problems = [];
+            let stations = [];
+            let map;
+            let selectedPoint = null;
+            let selectedMarker = null;
+            let roadMode = false;
+            let roadPoints = [];
+            let roadPreviewLine = null;
+            let roadPreviewMarkers = [];
+
+            function isAdmin() { return user && user.role === 'admin'; }
+
+            // ===== ИНИЦИАЛИЗАЦИЯ КАРТЫ =====
+            function initMap() {
+                map = L.map('map').setView([55.76, 37.64], 11);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap',
+                    maxZoom: 19,
+                }).addTo(map);
+
+                map.on('click', function(e) {
+                    if (roadMode) {
+                        roadPoints.push([e.latlng.lat, e.latlng.lng]);
+                        document.getElementById('roadPointCount').textContent = roadPoints.length;
+                        const dot = L.circleMarker(e.latlng, { radius: 5, color: '#e53935', fillColor: '#e53935', fillOpacity: 1 }).addTo(map);
+                        roadPreviewMarkers.push(dot);
+                        if (roadPreviewLine) map.removeLayer(roadPreviewLine);
+                        if (roadPoints.length >= 2) {
+                            roadPreviewLine = L.polyline(roadPoints, { color: '#e53935', weight: 6, opacity: 0.8 }).addTo(map);
+                        }
+                        return;
+                    }
+                    selectedPoint = e.latlng;
+                    document.getElementById('problemLat').value = selectedPoint.lat.toFixed(6);
+                    document.getElementById('problemLng').value = selectedPoint.lng.toFixed(6);
+                    document.getElementById('coordDisplay').textContent =
+                        selectedPoint.lat.toFixed(6) + ', ' + selectedPoint.lng.toFixed(6);
+                    document.getElementById('selectedCoords').style.display = 'block';
+
+                    if (selectedMarker) map.removeLayer(selectedMarker);
+                    selectedMarker = L.marker(selectedPoint, {
+                        icon: L.divIcon({ className: 'selected-marker', html: '📍', iconSize: [30, 30] })
+                    }).addTo(map);
+
+                    document.getElementById('consoleMessage').innerText =
+                        `📍 Выбраны координаты: ${selectedPoint.lat.toFixed(6)}, ${selectedPoint.lng.toFixed(6)}`;
+                });
+            }
+
+            // ===== РЕЖИМ «ВСЯ ДОРОГА ПЛОХАЯ» =====
+            function clearRoadPreview() {
+                if (roadPreviewLine) { map.removeLayer(roadPreviewLine); roadPreviewLine = null; }
+                roadPreviewMarkers.forEach((m) => map.removeLayer(m));
+                roadPreviewMarkers = [];
+            }
+            function startRoadMode() {
+                window.clearSelectedPoint();
+                roadMode = true;
+                roadPoints = [];
+                document.getElementById('roadModeHint').style.display = 'block';
+                document.getElementById('roadModeBtn').style.display = 'none';
+                document.getElementById('roadPointCount').textContent = '0';
+                clearRoadPreview();
+            }
+            function finishRoadMode() {
+                if (roadPoints.length < 2) {
+                    alert('Отметьте минимум 2 точки вдоль дороги.');
+                    return;
+                }
+                roadMode = false;
+                document.getElementById('roadModeHint').style.display = 'none';
+                document.getElementById('roadModeBtn').style.display = 'block';
+                document.getElementById('consoleMessage').innerText = `🚧 Дорога отмечена: ${roadPoints.length} точек. Заполните форму и отправьте.`;
+            }
+            function cancelRoadMode() {
+                roadMode = false;
+                roadPoints = [];
+                clearRoadPreview();
+                document.getElementById('roadModeHint').style.display = 'none';
+                document.getElementById('roadModeBtn').style.display = 'block';
+            }
+
+            // ===== ОЧИСТКА ВЫБРАННОЙ ТОЧКИ =====
+            window.clearSelectedPoint = function() {
+                selectedPoint = null;
+                document.getElementById('problemLat').value = '';
+                document.getElementById('problemLng').value = '';
+                document.getElementById('selectedCoords').style.display = 'none';
+                if (selectedMarker) { map.removeLayer(selectedMarker); selectedMarker = null; }
+            };
+
+            // ===== API ВЫЗОВЫ =====
+            async function apiRequest(endpoint, options = {}) {
+                const headers = { 'Content-Type': 'application/json', ...options.headers };
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+                const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({ error: 'Ошибка сервера' }));
+                    throw new Error(error.error || `HTTP ${response.status}`);
+                }
+                if (response.status === 204) return null;
+                return response.json();
+            }
+
+            // ===== ЗАГРУЗКА ДАННЫХ =====
+            async function loadProblems() {
+                try {
+                    problems = await apiRequest('/problems');
+                    renderProblems();
+                    renderMapMarkers();
+                    document.getElementById('consoleMessage').innerText = `✅ Загружено ${problems.length} проблем`;
+                } catch (err) {
+                    document.getElementById('consoleMessage').innerText = `❌ Ошибка загрузки проблем: ${err.message}`;
+                }
+            }
+            async function loadStations() {
+                try {
+                    stations = await apiRequest('/stations');
+                    renderMapMarkers();
+                } catch (err) {
+                    document.getElementById('consoleMessage').innerText = `❌ Ошибка загрузки АЗС: ${err.message}`;
+                }
+            }
+
+            const STATUS_LABELS = { new: 'Новая', confirmed: 'Подтверждено', rejected: 'Отклонено' };
+
+            // ===== ОТРИСОВКА МАРКЕРОВ НА КАРТЕ =====
+            const mapLayers = []; // все слои, которые мы сами добавили (кроме подложки и выбранной точки)
+            function clearMapLayers() {
+                mapLayers.forEach((l) => map.removeLayer(l));
+                mapLayers.length = 0;
+            }
+
+            function problemIcon() {
+                return L.divIcon({
+                    className: 'problem-pin',
+                    html: '<div style="background:#e53935;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.6)">!</div>',
+                    iconSize: [26, 26],
+                    iconAnchor: [13, 13],
+                });
+            }
+
+            function priceLine(label, value) {
+                return `${label}: ${value != null ? Number(value).toFixed(1) + ' ₽' : 'нет данных'}`;
+            }
+
+            function stationPopupHtml(s) {
+                const lines = [
+                    priceLine('⛽ АИ-92', s.price_92),
+                    priceLine('⛽ АИ-95', s.price_95),
+                    priceLine('⛽ АИ-98', s.price_98),
+                    priceLine('🛢 ДТ', s.price_dt),
+                ].join('<br/>');
+                const updated = s.updated_at ? `<br/><span style="font-size:0.7rem;color:#8899bb">Обновлено: ${new Date(s.updated_at).toLocaleString()}</span>` : '';
+                const editBtn = isAdmin()
+                    ? `<br/><button onclick="window.__editStationPrices(${s.id})" style="margin-top:6px;padding:4px 10px;border-radius:20px;border:none;background:#3a6ea5;color:#fff;cursor:pointer;">✏️ Обновить цены</button>`
+                    : '';
+                return `<b>${s.name}${s.brand ? ' (' + s.brand + ')' : ''}</b><br/>${lines}${updated}${editBtn}`;
+            }
+
+            window.__editStationPrices = async function(id) {
+                const s = stations.find((x) => x.id === id);
+                if (!s) return;
+                const p92 = prompt('АИ-92, ₽ (пусто — не менять):', s.price_92 ?? '');
+                const p95 = prompt('АИ-95, ₽ (пусто — не менять):', s.price_95 ?? '');
+                const p98 = prompt('АИ-98, ₽ (пусто — не менять):', s.price_98 ?? '');
+                const dt = prompt('ДТ, ₽ (пусто — не менять):', s.price_dt ?? '');
+                const body = {};
+                if (p92 !== null && p92 !== '') body.price92 = parseFloat(p92);
+                if (p95 !== null && p95 !== '') body.price95 = parseFloat(p95);
+                if (p98 !== null && p98 !== '') body.price98 = parseFloat(p98);
+                if (dt !== null && dt !== '') body.priceDt = parseFloat(dt);
+                try {
+                    await apiRequest(`/stations/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+                    await loadStations();
+                    document.getElementById('consoleMessage').innerText = '✅ Цены обновлены';
+                } catch (err) {
+                    alert('Ошибка: ' + err.message);
+                }
+            };
+
+            function renderMapMarkers() {
+                if (!map) return;
+                clearMapLayers();
+
+                problems.forEach((p) => {
+                    if (p.status === 'rejected') return; // отклонённые не засоряют карту
+                    if (p.is_road && Array.isArray(p.route) && p.route.length >= 2) {
+                        // Вся дорога плохая — сплошная красная линия
+                        const line = L.polyline(p.route, { color: '#e53935', weight: 8, opacity: 0.85 });
+                        line.bindPopup(`<b>🚧 ${p.title_ru || 'Плохая дорога'}</b><br/>📍 ${p.region}<br/>📊 ${STATUS_LABELS[p.status] || p.status}`);
+                        line.addTo(map);
+                        mapLayers.push(line);
+                    } else if (p.lat != null && p.lng != null) {
+                        // Точечная проблема — красный кружок с "!"
+                        const marker = L.marker([p.lat, p.lng], { icon: problemIcon() });
+                        marker.bindPopup(`
+                            <b>${p.title_ru || 'Без названия'}</b><br/>
+                            📍 ${p.region || 'Не указан'}<br/>
+                            🏷 ${p.category || 'Другое'}<br/>
+                            📊 ${STATUS_LABELS[p.status] || p.status}
+                            ${p.created_at ? `<br/>🕐 ${new Date(p.created_at).toLocaleDateString()}` : ''}
+                            ${p.ai_verdict ? `<br/><span style="color:#4caf50">🤖 ${p.ai_verdict}</span>` : ''}
+                        `);
+                        marker.addTo(map);
+                        mapLayers.push(marker);
+                    }
+                });
+
+                stations.forEach((s) => {
+                    const marker = L.marker([s.lat, s.lng], {
+                        icon: L.divIcon({ className: 'gas-icon', html: '⛽', iconSize: [28, 28], iconAnchor: [14, 14] }),
+                    });
+                    marker.bindPopup(stationPopupHtml(s));
+                    marker.addTo(map);
+                    mapLayers.push(marker);
+                });
+
+                if (selectedPoint && selectedMarker) selectedMarker.addTo(map);
+            }
+
+            // ===== ОТРИСОВКА СПИСКА ПРОБЛЕМ =====
+            function renderProblems() {
+                const container = document.getElementById('problemList');
+                if (!container) return;
+                container.innerHTML = '';
+                if (problems.length === 0) {
+                    container.innerHTML = '<div class="loading">✅ Проблем пока нет</div>';
+                    return;
+                }
+                problems.slice(0, 50).forEach((p) => {
+                    const div = document.createElement('div');
+                    div.className = 'problem-item';
+                    const status = p.status || 'new';
+                    let badgeClass = 'badge new';
+                    if (status === 'confirmed') badgeClass = 'badge ai';
+                    else if (status === 'rejected') badgeClass = 'badge pending';
+
+                    const coordsText = p.is_road ? '🚧 вся дорога' : (p.lat != null && p.lng != null)
+                        ? `${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}` : '📍 координаты не указаны';
+
+                    div.innerHTML = `
+                        <div class="title">
+                            <span>${p.title_ru || 'Без названия'}</span>
+                            <span class="${badgeClass}">${STATUS_LABELS[status] || status}</span>
+                        </div>
+                        <div class="meta">
+                            <span>📍 ${p.region || 'Не указан'}</span>
+                            <span>📂 ${p.category || 'Другое'}</span>
+                            ${p.created_at ? `<span>🕐 ${new Date(p.created_at).toLocaleDateString()}</span>` : ''}
+                        </div>
+                        <div class="coords">${coordsText}</div>
+                        ${p.ai_verdict ? `<div style="font-size:0.7rem;color:#8bc34a;margin-top:4px;">🤖 ${p.ai_verdict}</div>` : ''}
+                    `;
+                    container.appendChild(div);
+                });
+            }
+
+            // ===== ОТПРАВКА ПРОБЛЕМЫ =====
+            async function submitProblem() {
+                const submitBtn = document.getElementById('submitProblem');
+                const title = document.getElementById('problemTitle').value.trim();
+                const region = document.getElementById('problemRegion').value.trim();
+                const category = document.getElementById('problemCategory').value;
+                const file = document.getElementById('problemFile').files[0];
+
+                if (!token) { alert('Сначала войдите в аккаунт (вкладка «Настройки»).'); return; }
+                if (!title) { alert('Укажите заголовок проблемы.'); return; }
+                if (!roadMode && roadPoints.length === 0 && !selectedPoint) { alert('Кликните на карте, чтобы выбрать место (или отметьте всю дорогу).'); return; }
+
+                submitBtn.disabled = true;
+                submitBtn.textContent = '⏳ Отправка...';
+                try {
+                    let imageDataUrl = null;
+                    if (file) {
+                        imageDataUrl = await new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => resolve(e.target.result);
+                            reader.readAsDataURL(file);
+                        });
+                    }
+
+                    const isRoadSubmit = roadPoints.length >= 2 && !roadMode;
+                    const body = {
+                        region: region || 'Не указан',
+                        category: category || 'other',
+                        severity: 'med',
+                        titleRu: title,
+                        titleEn: title,
+                        imageDataUrl,
+                    };
+                    if (isRoadSubmit) {
+                        body.isRoad = true;
+                        body.route = roadPoints;
+                    } else if (selectedPoint) {
+                        body.lat = selectedPoint.lat;
+                        body.lng = selectedPoint.lng;
+                    }
+
+                    const data = await apiRequest('/problems', { method: 'POST', body: JSON.stringify(body) });
+                    problems.unshift(data);
+                    renderProblems();
+                    renderMapMarkers();
+                    document.getElementById('consoleMessage').innerText = `✅ Проблема добавлена!${data.ai_verdict ? ' 🤖 ' + data.ai_verdict : ''}`;
+
+                    window.clearSelectedPoint();
+                    cancelRoadMode();
+                    document.getElementById('problemTitle').value = '';
+                    document.getElementById('problemFile').value = '';
+                } catch (err) {
+                    alert('Ошибка при добавлении: ' + err.message);
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Отправить на проверку';
+                }
+            }
+
+            // ===== РЕГИСТРАЦИЯ / ВХОД / ВЫХОД =====
+            async function register(email, password) {
+                try {
+                    const data = await apiRequest('/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
+                    applySession(data);
+                    showRegMsg('✅ Регистрация успешна!', true);
+                } catch (err) { showRegMsg('❌ ' + err.message, false); }
+            }
+            async function login(email, password) {
+                try {
+                    const data = await apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+                    applySession(data);
+                    showRegMsg('✅ Вход выполнен!', true);
+                    loadProblems();
+                } catch (err) { showRegMsg('❌ ' + err.message, false); }
+            }
+            function logout() {
+                token = null; user = null;
+                localStorage.removeItem('token'); localStorage.removeItem('user');
+                updateUI();
+                showRegMsg('👋 Вы вышли', null);
+            }
+            function applySession(data) {
+                token = data.token;
+                user = data.user; // {email, role}
+                localStorage.setItem('token', token);
+                localStorage.setItem('user', JSON.stringify(user));
+                updateUI();
+            }
+            function showRegMsg(text, ok) {
+                const el = document.getElementById('regMessage');
+                el.innerText = text;
+                el.className = 'reg-msg' + (ok === true ? ' success' : ok === false ? ' error' : '');
+            }
+
+            // ===== АДМИН-ПАНЕЛЬ =====
+            async function loadAdminSettings() {
+                if (!isAdmin()) return;
+                try {
+                    const s = await apiRequest('/admin/settings');
+                    document.getElementById('deepseekKeyStatus').textContent = s.deepseekKeySet ? '🔑 Ключ сохранён' : '⚠️ Ключ не задан — проверка фото ИИ отключена';
+                    document.getElementById('priceApiStatus').textContent = s.priceApiKeySet ? '🔑 Провайдер настроен' : '⚠️ Провайдер не настроен — цены обновляются только вручную';
+                    document.getElementById('priceApiUrlInput').value = s.priceApiUrl || '';
+                } catch { /* тихо игнорируем — не критично для остального интерфейса */ }
+            }
+            async function saveDeepseekKey() {
+                const val = document.getElementById('deepseekKeyInput').value;
+                try {
+                    const s = await apiRequest('/admin/settings', { method: 'PUT', body: JSON.stringify({ deepseekApiKey: val }) });
+                    document.getElementById('deepseekKeyStatus').textContent = s.deepseekKeySet ? '🔑 Ключ сохранён' : 'Ключ очищен';
+                    document.getElementById('deepseekKeyInput').value = '';
+                } catch (err) { alert('Ошибка: ' + err.message); }
+            }
+            async function savePriceApi() {
+                const priceApiUrl = document.getElementById('priceApiUrlInput').value.trim();
+                const priceApiKey = document.getElementById('priceApiKeyInput').value;
+                try {
+                    const s = await apiRequest('/admin/settings', { method: 'PUT', body: JSON.stringify({ priceApiUrl, priceApiKey }) });
+                    document.getElementById('priceApiStatus').textContent = s.priceApiKeySet ? '🔑 Провайдер настроен' : 'Токен очищен';
+                    document.getElementById('priceApiKeyInput').value = '';
+                } catch (err) { alert('Ошибка: ' + err.message); }
+            }
+            async function addStationManually() {
+                const name = document.getElementById('stationName').value.trim();
+                if (!name) { alert('Введите название АЗС.'); return; }
+                if (!selectedPoint) { alert('Сначала кликните на карте, чтобы выбрать место АЗС.'); return; }
+                try {
+                    await apiRequest('/stations', { method: 'POST', body: JSON.stringify({ name, lat: selectedPoint.lat, lng: selectedPoint.lng }) });
+                    document.getElementById('stationName').value = '';
+                    window.clearSelectedPoint();
+                    await loadStations();
+                    document.getElementById('consoleMessage').innerText = '✅ АЗС добавлена';
+                } catch (err) { alert('Ошибка: ' + err.message); }
+            }
+
+            // ===== ОБНОВЛЕНИЕ UI =====
+            function updateUI() {
+                const userBadge = document.getElementById('userBadge');
+                if (userBadge) userBadge.innerText = '👤 ' + (user ? user.email + (isAdmin() ? ' (админ)' : '') : 'гость');
+
+                document.getElementById('regButton').style.display = token ? 'none' : 'block';
+                document.getElementById('loginButton').style.display = token ? 'none' : 'block';
+                document.getElementById('logoutButton').style.display = token ? 'block' : 'none';
+                document.getElementById('userStatusBox').innerText = '👤 Вы: ' + (user ? user.email : 'гость');
+
+                document.getElementById('submitProblem').disabled = !token;
+
+                const adminCard = document.getElementById('adminCard');
+                adminCard.style.display = isAdmin() ? 'block' : 'none';
+                if (isAdmin()) loadAdminSettings();
+            }
+
+            // ===== ВКЛАДКИ / ТЕМА =====
+            function switchTab(tabId) {
+                document.querySelectorAll('.tab').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tabId));
+                document.querySelectorAll('.page').forEach((page) => page.classList.toggle('active', page.id === 'page-' + tabId));
+                if (tabId === 'map' && map) setTimeout(() => map.invalidateSize(), 50); // карта была скрыта — пересчитать размер
+            }
+            function applyTheme(theme) {
+                document.body.classList.toggle('light', theme === 'light');
+                document.querySelectorAll('.theme-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.theme === theme));
+                localStorage.setItem('theme', theme);
+            }
+
+            // ===== ЗАПУСК =====
+            document.addEventListener('DOMContentLoaded', () => {
+                initMap();
+                updateUI();
+                applyTheme(localStorage.getItem('theme') || 'light');
+                loadProblems();
+                loadStations();
+                setInterval(() => { loadProblems(); loadStations(); }, REFRESH_MS);
+
+                document.querySelectorAll('.tab').forEach((btn) => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+                document.querySelectorAll('.theme-btn').forEach((btn) => btn.addEventListener('click', () => applyTheme(btn.dataset.theme)));
+
+                document.getElementById('submitProblem').addEventListener('click', submitProblem);
+                document.getElementById('roadModeBtn').addEventListener('click', startRoadMode);
+                document.getElementById('roadModeDone').addEventListener('click', finishRoadMode);
+                document.getElementById('roadModeCancel').addEventListener('click', cancelRoadMode);
+
+                document.getElementById('regButton').addEventListener('click', () => register(document.getElementById('regEmail').value.trim(), document.getElementById('regPass').value));
+                document.getElementById('loginButton').addEventListener('click', () => login(document.getElementById('regEmail').value.trim(), document.getElementById('regPass').value));
+                document.getElementById('logoutButton').addEventListener('click', logout);
+
+                document.getElementById('saveDeepseekKey').addEventListener('click', saveDeepseekKey);
+                document.getElementById('savePriceApi').addEventListener('click', savePriceApi);
+                document.getElementById('addStationBtn').addEventListener('click', addStationManually);
+
+                document.getElementById('chatSend').addEventListener('click', () => {
+                    const input = document.getElementById('chatInput');
+                    if (!input.value.trim()) return;
+                    document.getElementById('consoleMessage').innerText = '💬 Сообщение отправлено в поддержку (демо)';
+                    input.value = '';
+                });
+            });
+        })();
+        </script>
+    </body>
+</html>

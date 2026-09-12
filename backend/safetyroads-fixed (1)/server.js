@@ -10,6 +10,7 @@ const { apiLimiter, authLimiter, authSlowDown } = require("./middleware/security
 const authRoutes = require("./routes/auth");
 const problemsRoutes = require("./routes/problems");
 const adminRoutes = require("./routes/admin");
+const stationsRoutes = require("./routes/stations");
 
 const app = express();
 app.set("trust proxy", 1); // needed behind Render/Railway/Cloudflare for real client IPs
@@ -29,6 +30,7 @@ app.get("/health", (req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/problems", problemsRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/stations", stationsRoutes);
 
 // Serve the frontend from the same server, so one deploy = the whole site.
 app.use(express.static(path.join(__dirname, "frontend")));
