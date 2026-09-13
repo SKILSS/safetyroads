@@ -11,6 +11,8 @@ const authRoutes = require("./routes/auth");
 const problemsRoutes = require("./routes/problems");
 const adminRoutes = require("./routes/admin");
 const stationsRoutes = require("./routes/stations");
+const { syncStations } = require("./scripts/sync-stations");
+const { syncPrices } = require("./scripts/sync-prices");
 
 const app = express();
 app.set("trust proxy", 1); // needed behind Render/Railway/Cloudflare for real client IPs
@@ -44,10 +46,35 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Internal server error." });
 });
 
+// Keeps gas station markers (locations from OSM) and their prices (from
+// whatever provider is configured in Settings > Admin panel) current
+// automatically, once a day — no external cron needed. Runs shortly after
+// boot, then every 24h. Both syncs are safe to call with nothing configured:
+// syncStations just re-pulls OSM's free data, syncPrices logs and no-ops if
+// no provider is set.
+const DAY_MS = 24 * 60 * 60 * 1000;
+async function runDailyStationSync() {
+  try {
+    await syncStations();
+  } catch (err) {
+    console.error("Scheduled station sync failed:", err);
+  }
+  try {
+    await syncPrices();
+  } catch (err) {
+    console.error("Scheduled price sync failed:", err);
+  }
+}
+function scheduleDailyStationSync() {
+  setTimeout(runDailyStationSync, 60 * 1000); // small delay so it doesn't compete with server boot
+  setInterval(runDailyStationSync, DAY_MS);
+}
+
 const port = process.env.PORT || 8080;
 async function start() {
   await initSchema();
   app.listen(port, () => console.log(`RegionWatch listening on :${port}`));
+  scheduleDailyStationSync();
 }
 start().catch((err) => { console.error("Failed to start:", err); process.exit(1); });
 

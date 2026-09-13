@@ -58,11 +58,12 @@ function extractStations(payload) {
   })).filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng));
 }
 
-async function main() {
+// Reusable entry point (used by both the CLI below and server.js's automatic
+// 24h scheduler). Does NOT close the pool — the caller owns that.
+async function syncPrices() {
   const settings = (await pool.query("SELECT price_api_key, price_api_url FROM app_settings WHERE id = 1")).rows[0];
   if (!settings?.price_api_url || !settings?.price_api_key) {
     console.log("No price provider configured yet (Settings > Admin panel). Nothing to sync — exiting.");
-    await pool.end();
     return;
   }
 
@@ -98,10 +99,17 @@ async function main() {
     }
   }
   console.log(`Updated ${matched} existing stations, inserted ${providerStations.length - matched} new ones.`);
-  await pool.end();
 }
 
-main().catch((err) => {
-  console.error("sync-prices failed:", err);
-  process.exit(1);
-});
+module.exports = { syncPrices };
+
+// Only run as a standalone script (and close the pool) when invoked directly
+// via `node scripts/sync-prices.js`, not when required by server.js.
+if (require.main === module) {
+  syncPrices()
+    .then(() => pool.end())
+    .catch((err) => {
+      console.error("sync-prices failed:", err);
+      process.exit(1);
+    });
+}

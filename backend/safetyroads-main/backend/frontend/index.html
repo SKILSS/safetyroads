@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SafetyRoad — Дорожный дозор</title>
+    <title>SafetyRoad</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * {
@@ -114,6 +114,10 @@
             margin-bottom: 10px;
             background: #1a2535;
             cursor: crosshair;
+        }
+        /* Hide the Leaflet attribution control entirely (no "Leaflet" link, no flag icon) */
+        .leaflet-control-attribution {
+            display: none !important;
         }
         .map-footer {
             font-size: 0.8rem;
@@ -388,7 +392,7 @@
             color: #f5a623;
             border: 1px solid #f5a623;
         }
-        /* Светлая тема */
+        /* Light theme */
         body.light .app {
             background: #eef2f7;
         }
@@ -502,153 +506,153 @@
 </head>
 <body>
     <div class="app">
-        <!-- ШАПКА -->
+        <!-- HEADER -->
         <div class="header">
-            <div class="logo">SafetyRoad <small>дорожный дозор</small></div>
-            <div class="user-badge" id="userBadge" onclick="document.getElementById('page-settings').scrollIntoView()">👤 гость</div>
+            <div class="logo">SafetyRoad</div>
+            <div class="user-badge" id="userBadge" onclick="document.getElementById('page-settings').scrollIntoView()">👤 guest</div>
         </div>
 
-        <!-- ВКЛАДКИ -->
+        <!-- TABS -->
         <div class="tabs">
-            <button class="tab active" data-tab="map">🗺 Карта</button>
-            <button class="tab" data-tab="problems">⚠️ Проблемы</button>
-            <button class="tab" data-tab="settings">⚙️ Настройки</button>
+            <button class="tab active" data-tab="map">🗺 Map</button>
+            <button class="tab" data-tab="problems">⚠️ Issues</button>
+            <button class="tab" data-tab="settings">⚙️ Settings</button>
         </div>
 
-        <!-- КОНТЕНТ -->
+        <!-- CONTENT -->
         <div class="content">
-            <!-- ===== КАРТА ===== -->
+            <!-- ===== MAP ===== -->
             <div id="page-map" class="page active">
                 <div id="map"></div>
-                <div class="map-hint">🖱 Кликните на карту, чтобы выбрать место проблемы</div>
+                <div class="map-hint">🖱 Click the map to pick the issue's location</div>
                 <div id="selectedCoords" class="selected-marker-info" style="display:none;">
-                    📍 Выбрано: <span id="coordDisplay">55.76, 37.64</span>
+                    📍 Selected: <span id="coordDisplay">55.76, 37.64</span>
                     <button onclick="clearSelectedPoint()" style="background:transparent;border:1px solid #f5a623;color:#f5a623;padding:2px 12px;border-radius:30px;cursor:pointer;margin-left:8px;">✕</button>
                 </div>
                 <div class="map-footer">
-                    <span>🔴 Красный кружок с "!" — проблема</span>
-                    <span>🔴 Красная линия — вся дорога плохая</span>
-                    <span>⛽ — АЗС (нажмите, чтобы увидеть цены)</span>
+                    <span>🔴 Red circle with "!" — an issue</span>
+                    <span>🔴 Red line — the whole road is bad</span>
+                    <span>⛽ — gas station (click to see prices)</span>
                 </div>
             </div>
 
-            <!-- ===== ПРОБЛЕМЫ ===== -->
+            <!-- ===== ISSUES ===== -->
             <div id="page-problems" class="page">
                 <div id="problemList">
-                    <div class="loading">⏳ Загрузка проблем...</div>
+                    <div class="loading">⏳ Loading issues...</div>
                 </div>
 
                 <div class="add-form">
-                    <h4 style="margin-bottom:4px;">➕ Сообщить о проблеме</h4>
-                    <input type="text" id="problemTitle" placeholder="Заголовок (например, Яма на дороге)" />
-                    <input type="text" id="problemRegion" placeholder="Регион (например, Москва)" />
+                    <h4 style="margin-bottom:4px;">➕ Report an issue</h4>
+                    <input type="text" id="problemTitle" placeholder="Title (e.g. Pothole in the road)" />
+                    <input type="text" id="problemRegion" placeholder="Region (e.g. Moscow)" />
                     <select id="problemCategory">
-                        <option value="Дороги">🚧 Дороги</option>
-                        <option value="Освещение">💡 Освещение</option>
-                        <option value="ЖКХ">🏠 ЖКХ</option>
-                        <option value="Мусор">🗑 Мусор</option>
-                        <option value="other">📌 Другое</option>
+                        <option value="Roads">🚧 Roads</option>
+                        <option value="Lighting">💡 Lighting</option>
+                        <option value="Utilities">🏠 Utilities</option>
+                        <option value="Litter">🗑 Litter</option>
+                        <option value="other">📌 Other</option>
                     </select>
                     <div class="coord-row">
-                        <input type="text" id="problemLat" placeholder="Широта (нажмите на карте)" readonly />
-                        <input type="text" id="problemLng" placeholder="Долгота (нажмите на карте)" readonly />
+                        <input type="text" id="problemLat" placeholder="Latitude (click on the map)" readonly />
+                        <input type="text" id="problemLng" placeholder="Longitude (click on the map)" readonly />
                     </div>
-                    <button type="button" id="roadModeBtn" style="background:#26344a;color:#f5c542;">🚧 Обозначить всю дорогу (несколько точек)</button>
+                    <button type="button" id="roadModeBtn" style="background:#26344a;color:#f5c542;">🚧 Mark the whole road (multiple points)</button>
                     <div id="roadModeHint" style="display:none;font-size:0.75rem;color:#f5a623;margin-top:6px;">
-                        Кликайте по карте, чтобы добавить точки дороги (<span id="roadPointCount">0</span>). Когда закончите — нажмите «Готово».
-                        <button type="button" id="roadModeDone" style="width:auto;display:inline-block;padding:4px 12px;margin:6px 4px 0 0;">✅ Готово</button>
-                        <button type="button" id="roadModeCancel" style="width:auto;display:inline-block;padding:4px 12px;margin:6px 0 0;background:#3a2020;">✕ Отмена</button>
+                        Click the map to add road points (<span id="roadPointCount">0</span>). When you're done, press "Done".
+                        <button type="button" id="roadModeDone" style="width:auto;display:inline-block;padding:4px 12px;margin:6px 4px 0 0;">✅ Done</button>
+                        <button type="button" id="roadModeCancel" style="width:auto;display:inline-block;padding:4px 12px;margin:6px 0 0;background:#3a2020;">✕ Cancel</button>
                     </div>
                     <input type="file" id="problemFile" accept="image/*" class="file-input" />
-                    <button id="submitProblem">Отправить на проверку</button>
+                    <button id="submitProblem">Submit for review</button>
                     <div style="font-size:0.7rem;color:#7e92b0;margin-top:6px;">
-                        🤖 ИИ проверит фото (если загружено) • <span style="color:#f5a623;">Кликните на карту</span> чтобы выбрать координаты
+                        🤖 AI will check the photo (if uploaded) • <span style="color:#f5a623;">Click the map</span> to pick coordinates
                     </div>
                 </div>
             </div>
 
-            <!-- ===== НАСТРОЙКИ ===== -->
+            <!-- ===== SETTINGS ===== -->
             <div id="page-settings" class="page">
                 <div class="settings-card">
                     <div class="settings-row">
-                        <span>🌓 Тема</span>
+                        <span>🌓 Theme</span>
                         <div class="theme-group">
-                            <button class="theme-btn" data-theme="dark">Тёмная</button>
-                            <button class="theme-btn active" data-theme="light">Светлая</button>
+                            <button class="theme-btn" data-theme="dark">Dark</button>
+                            <button class="theme-btn active" data-theme="light">Light</button>
                         </div>
                     </div>
                     <div class="settings-row">
-                        <span>🌐 Язык</span>
-                        <span style="color:#b0c7e0;">Русский</span>
+                        <span>🌐 Language</span>
+                        <span style="color:#b0c7e0;">English</span>
                     </div>
                 </div>
 
                 <div class="settings-card">
                     <div class="settings-row">
-                        <span>💬 Поддержка</span>
+                        <span>💬 Support</span>
                         <div class="chat-support">
-                            <input type="text" placeholder="Напишите..." id="chatInput" />
+                            <input type="text" placeholder="Type a message..." id="chatInput" />
                             <span id="chatSend">➤</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="register-box">
-                    <h4 style="margin-bottom:12px;">🔐 Вход / Регистрация</h4>
+                    <h4 style="margin-bottom:12px;">🔐 Sign in / Register</h4>
                     <input type="email" id="regEmail" placeholder="Email" />
-                    <input type="password" id="regPass" placeholder="Пароль (мин. 8 символов)" />
-                    <button class="btn-reg" id="regButton">Зарегистрироваться</button>
-                    <button class="btn-reg" id="loginButton" style="background:#4a7a5a;">Войти</button>
-                    <button class="btn-logout" id="logoutButton" style="display:none;">Выйти</button>
+                    <input type="password" id="regPass" placeholder="Password (min. 8 characters)" />
+                    <button class="btn-reg" id="regButton">Register</button>
+                    <button class="btn-reg" id="loginButton" style="background:#4a7a5a;">Sign in</button>
+                    <button class="btn-logout" id="logoutButton" style="display:none;">Sign out</button>
                     <div class="reg-msg" id="regMessage"></div>
-                    <div class="user-status" id="userStatusBox">👤 Вы: гость</div>
+                    <div class="user-status" id="userStatusBox">👤 You: guest</div>
                 </div>
 
                 <div class="settings-card" id="adminCard" style="display:none;">
-                    <h4 style="margin-bottom:10px;">🛠 Админ-панель</h4>
+                    <h4 style="margin-bottom:10px;">🛠 Admin panel</h4>
                     <div class="settings-row" style="display:block;">
-                        <span>🤖 Ключ DeepSeek (проверка фото ИИ)</span>
-                        <input type="password" id="deepseekKeyInput" placeholder="Оставьте пустым, чтобы не менять" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
+                        <span>🤖 DeepSeek key (AI photo review)</span>
+                        <input type="password" id="deepseekKeyInput" placeholder="Leave blank to keep unchanged" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
                         <div id="deepseekKeyStatus" style="font-size:0.75rem;color:#7e92b0;margin-top:6px;"></div>
-                        <button type="button" id="saveDeepseekKey" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#f5a623;color:#111;font-weight:700;cursor:pointer;">Сохранить ключ</button>
+                        <button type="button" id="saveDeepseekKey" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#f5a623;color:#111;font-weight:700;cursor:pointer;">Save key</button>
                     </div>
                     <div class="settings-row" style="display:block;border-top:1px solid #29394e;padding-top:12px;">
-                        <span>⛽ Автообновление цен (провайдер, напр. Benzup)</span>
-                        <input type="text" id="priceApiUrlInput" placeholder="URL провайдера, напр. https://api.omt-consult.ru/v2/stations" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
-                        <input type="password" id="priceApiKeyInput" placeholder="Bearer-токен провайдера (оставьте пустым, чтобы не менять)" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
+                        <span>⛽ Automatic price updates (provider, e.g. Benzup)</span>
+                        <input type="text" id="priceApiUrlInput" placeholder="Provider URL, e.g. https://api.omt-consult.ru/v2/stations" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
+                        <input type="password" id="priceApiKeyInput" placeholder="Provider bearer token (leave blank to keep unchanged)" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
                         <div id="priceApiStatus" style="font-size:0.75rem;color:#7e92b0;margin-top:6px;"></div>
-                        <div style="font-size:0.7rem;color:#7e92b0;margin-top:4px;">Бесплатного живого API цен по АЗС в РФ нет — это платный провайдер. После сохранения запускайте <code>npm run sync-prices</code> по расписанию (cron), чтобы цены обновлялись сами.</div>
-                        <button type="button" id="savePriceApi" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#f5a623;color:#111;font-weight:700;cursor:pointer;">Сохранить провайдера цен</button>
+                        <div style="font-size:0.7rem;color:#7e92b0;margin-top:4px;">There's no free live price feed for Russian gas stations — this is a paid provider. Once saved, the server automatically re-syncs stations and prices every 24 hours on its own (no cron setup needed).</div>
+                        <button type="button" id="savePriceApi" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#f5a623;color:#111;font-weight:700;cursor:pointer;">Save price provider</button>
                     </div>
                     <div class="settings-row" style="display:block;border-top:1px solid #29394e;padding-top:12px;">
-                        <span>⛽ Добавить АЗС вручную</span>
-                        <input type="text" id="stationName" placeholder="Название АЗС" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
-                        <div style="font-size:0.75rem;color:#7e92b0;margin-top:6px;">Кликните на карте, затем нажмите «Добавить АЗС в выбранной точке»</div>
-                        <button type="button" id="addStationBtn" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#3a6ea5;color:#fff;font-weight:700;cursor:pointer;">➕ Добавить АЗС в выбранной точке</button>
+                        <span>⛽ Add a gas station manually</span>
+                        <input type="text" id="stationName" placeholder="Station name" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
+                        <div style="font-size:0.75rem;color:#7e92b0;margin-top:6px;">Click the map, then press "Add station at selected point"</div>
+                        <button type="button" id="addStationBtn" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#3a6ea5;color:#fff;font-weight:700;cursor:pointer;">➕ Add station at selected point</button>
                     </div>
                 </div>
 
                 <div class="console">
-                    ⚙️ Console: <span id="consoleMessage">Система готова</span>
+                    ⚙️ Console: <span id="consoleMessage">System ready</span>
                 </div>
-                <div class="footer">SafetyRoad — данные обновляются 24/7</div>
+                <div class="footer">SafetyRoad — data updates 24/7</div>
             </div>
         </div>
     </div>
 
     <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-    </script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         (function() {
             'use strict';
 
-            // ===== КОНФИГ =====
+            // ===== CONFIG =====
             const API_URL = window.location.origin + '/api';
-            // Для локальной разработки: const API_URL = 'http://localhost:8080/api';
-            const REFRESH_MS = 45000; // как часто перечитывать проблемы/АЗС с сервера
+            // For local development: const API_URL = 'http://localhost:8080/api';
+            const REFRESH_MS = 45000; // how often to re-fetch issues/stations from the server
+            const STATION_PRICE_REFRESH_MS = 24 * 60 * 60 * 1000; // gas station markers + prices are also force-refreshed every 24h
 
-            // ===== СОСТОЯНИЕ =====
+            // ===== STATE =====
             let token = localStorage.getItem('token');
             let user = JSON.parse(localStorage.getItem('user') || 'null'); // {email, role} | null
             let problems = [];
@@ -663,13 +667,18 @@
 
             function isAdmin() { return user && user.role === 'admin'; }
 
-            // ===== ИНИЦИАЛИЗАЦИЯ КАРТЫ =====
+            // ===== MAP INITIALIZATION =====
             function initMap() {
-                map = L.map('map').setView([55.76, 37.64], 11);
+                // attributionControl: false removes Leaflet's default bottom-right
+                // attribution box (the "Leaflet" link + flag icon) entirely.
+                map = L.map('map', { attributionControl: false }).setView([55.76, 37.64], 11);
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap',
+                    attribution: '© OpenStreetMap contributors',
                     maxZoom: 19,
                 }).addTo(map);
+                // Re-add a minimal attribution control with no prefix, so only the
+                // required OpenStreetMap credit shows — no "Leaflet" link, no flag.
+                L.control.attribution({ prefix: false }).addTo(map);
 
                 map.on('click', function(e) {
                     if (roadMode) {
@@ -696,11 +705,11 @@
                     }).addTo(map);
 
                     document.getElementById('consoleMessage').innerText =
-                        `📍 Выбраны координаты: ${selectedPoint.lat.toFixed(6)}, ${selectedPoint.lng.toFixed(6)}`;
+                        `📍 Coordinates selected: ${selectedPoint.lat.toFixed(6)}, ${selectedPoint.lng.toFixed(6)}`;
                 });
             }
 
-            // ===== РЕЖИМ «ВСЯ ДОРОГА ПЛОХАЯ» =====
+            // ===== "WHOLE ROAD IS BAD" MODE =====
             function clearRoadPreview() {
                 if (roadPreviewLine) { map.removeLayer(roadPreviewLine); roadPreviewLine = null; }
                 roadPreviewMarkers.forEach((m) => map.removeLayer(m));
@@ -717,13 +726,13 @@
             }
             function finishRoadMode() {
                 if (roadPoints.length < 2) {
-                    alert('Отметьте минимум 2 точки вдоль дороги.');
+                    alert('Mark at least 2 points along the road.');
                     return;
                 }
                 roadMode = false;
                 document.getElementById('roadModeHint').style.display = 'none';
                 document.getElementById('roadModeBtn').style.display = 'block';
-                document.getElementById('consoleMessage').innerText = `🚧 Дорога отмечена: ${roadPoints.length} точек. Заполните форму и отправьте.`;
+                document.getElementById('consoleMessage').innerText = `🚧 Road marked: ${roadPoints.length} points. Fill in the form and submit.`;
             }
             function cancelRoadMode() {
                 roadMode = false;
@@ -733,7 +742,7 @@
                 document.getElementById('roadModeBtn').style.display = 'block';
             }
 
-            // ===== ОЧИСТКА ВЫБРАННОЙ ТОЧКИ =====
+            // ===== CLEAR SELECTED POINT =====
             window.clearSelectedPoint = function() {
                 selectedPoint = null;
                 document.getElementById('problemLat').value = '';
@@ -742,28 +751,28 @@
                 if (selectedMarker) { map.removeLayer(selectedMarker); selectedMarker = null; }
             };
 
-            // ===== API ВЫЗОВЫ =====
+            // ===== API CALLS =====
             async function apiRequest(endpoint, options = {}) {
                 const headers = { 'Content-Type': 'application/json', ...options.headers };
                 if (token) headers['Authorization'] = `Bearer ${token}`;
                 const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
                 if (!response.ok) {
-                    const error = await response.json().catch(() => ({ error: 'Ошибка сервера' }));
+                    const error = await response.json().catch(() => ({ error: 'Server error' }));
                     throw new Error(error.error || `HTTP ${response.status}`);
                 }
                 if (response.status === 204) return null;
                 return response.json();
             }
 
-            // ===== ЗАГРУЗКА ДАННЫХ =====
+            // ===== DATA LOADING =====
             async function loadProblems() {
                 try {
                     problems = await apiRequest('/problems');
                     renderProblems();
                     renderMapMarkers();
-                    document.getElementById('consoleMessage').innerText = `✅ Загружено ${problems.length} проблем`;
+                    document.getElementById('consoleMessage').innerText = `✅ Loaded ${problems.length} issues`;
                 } catch (err) {
-                    document.getElementById('consoleMessage').innerText = `❌ Ошибка загрузки проблем: ${err.message}`;
+                    document.getElementById('consoleMessage').innerText = `❌ Failed to load issues: ${err.message}`;
                 }
             }
             async function loadStations() {
@@ -771,14 +780,14 @@
                     stations = await apiRequest('/stations');
                     renderMapMarkers();
                 } catch (err) {
-                    document.getElementById('consoleMessage').innerText = `❌ Ошибка загрузки АЗС: ${err.message}`;
+                    document.getElementById('consoleMessage').innerText = `❌ Failed to load gas stations: ${err.message}`;
                 }
             }
 
-            const STATUS_LABELS = { new: 'Новая', confirmed: 'Подтверждено', rejected: 'Отклонено' };
+            const STATUS_LABELS = { new: 'New', confirmed: 'Confirmed', rejected: 'Rejected' };
 
-            // ===== ОТРИСОВКА МАРКЕРОВ НА КАРТЕ =====
-            const mapLayers = []; // все слои, которые мы сами добавили (кроме подложки и выбранной точки)
+            // ===== RENDERING MAP MARKERS =====
+            const mapLayers = []; // all layers we added ourselves (except the base layer and the selected point)
             function clearMapLayers() {
                 mapLayers.forEach((l) => map.removeLayer(l));
                 mapLayers.length = 0;
@@ -794,19 +803,19 @@
             }
 
             function priceLine(label, value) {
-                return `${label}: ${value != null ? Number(value).toFixed(1) + ' ₽' : 'нет данных'}`;
+                return `${label}: ${value != null ? Number(value).toFixed(1) + ' ₽' : 'no data'}`;
             }
 
             function stationPopupHtml(s) {
                 const lines = [
-                    priceLine('⛽ АИ-92', s.price_92),
-                    priceLine('⛽ АИ-95', s.price_95),
-                    priceLine('⛽ АИ-98', s.price_98),
-                    priceLine('🛢 ДТ', s.price_dt),
+                    priceLine('⛽ RON-92', s.price_92),
+                    priceLine('⛽ RON-95', s.price_95),
+                    priceLine('⛽ RON-98', s.price_98),
+                    priceLine('🛢 Diesel', s.price_dt),
                 ].join('<br/>');
-                const updated = s.updated_at ? `<br/><span style="font-size:0.7rem;color:#8899bb">Обновлено: ${new Date(s.updated_at).toLocaleString()}</span>` : '';
+                const updated = s.updated_at ? `<br/><span style="font-size:0.7rem;color:#8899bb">Updated: ${new Date(s.updated_at).toLocaleString()}</span>` : '';
                 const editBtn = isAdmin()
-                    ? `<br/><button onclick="window.__editStationPrices(${s.id})" style="margin-top:6px;padding:4px 10px;border-radius:20px;border:none;background:#3a6ea5;color:#fff;cursor:pointer;">✏️ Обновить цены</button>`
+                    ? `<br/><button onclick="window.__editStationPrices(${s.id})" style="margin-top:6px;padding:4px 10px;border-radius:20px;border:none;background:#3a6ea5;color:#fff;cursor:pointer;">✏️ Update prices</button>`
                     : '';
                 return `<b>${s.name}${s.brand ? ' (' + s.brand + ')' : ''}</b><br/>${lines}${updated}${editBtn}`;
             }
@@ -814,10 +823,10 @@
             window.__editStationPrices = async function(id) {
                 const s = stations.find((x) => x.id === id);
                 if (!s) return;
-                const p92 = prompt('АИ-92, ₽ (пусто — не менять):', s.price_92 ?? '');
-                const p95 = prompt('АИ-95, ₽ (пусто — не менять):', s.price_95 ?? '');
-                const p98 = prompt('АИ-98, ₽ (пусто — не менять):', s.price_98 ?? '');
-                const dt = prompt('ДТ, ₽ (пусто — не менять):', s.price_dt ?? '');
+                const p92 = prompt('RON-92, ₽ (leave blank to keep unchanged):', s.price_92 ?? '');
+                const p95 = prompt('RON-95, ₽ (leave blank to keep unchanged):', s.price_95 ?? '');
+                const p98 = prompt('RON-98, ₽ (leave blank to keep unchanged):', s.price_98 ?? '');
+                const dt = prompt('Diesel, ₽ (leave blank to keep unchanged):', s.price_dt ?? '');
                 const body = {};
                 if (p92 !== null && p92 !== '') body.price92 = parseFloat(p92);
                 if (p95 !== null && p95 !== '') body.price95 = parseFloat(p95);
@@ -826,9 +835,9 @@
                 try {
                     await apiRequest(`/stations/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
                     await loadStations();
-                    document.getElementById('consoleMessage').innerText = '✅ Цены обновлены';
+                    document.getElementById('consoleMessage').innerText = '✅ Prices updated';
                 } catch (err) {
-                    alert('Ошибка: ' + err.message);
+                    alert('Error: ' + err.message);
                 }
             };
 
@@ -837,20 +846,20 @@
                 clearMapLayers();
 
                 problems.forEach((p) => {
-                    if (p.status === 'rejected') return; // отклонённые не засоряют карту
+                    if (p.status === 'rejected') return; // rejected reports don't clutter the map
                     if (p.is_road && Array.isArray(p.route) && p.route.length >= 2) {
-                        // Вся дорога плохая — сплошная красная линия
+                        // Whole road is bad — solid red line
                         const line = L.polyline(p.route, { color: '#e53935', weight: 8, opacity: 0.85 });
-                        line.bindPopup(`<b>🚧 ${p.title_ru || 'Плохая дорога'}</b><br/>📍 ${p.region}<br/>📊 ${STATUS_LABELS[p.status] || p.status}`);
+                        line.bindPopup(`<b>🚧 ${p.title_ru || 'Bad road'}</b><br/>📍 ${p.region}<br/>📊 ${STATUS_LABELS[p.status] || p.status}`);
                         line.addTo(map);
                         mapLayers.push(line);
                     } else if (p.lat != null && p.lng != null) {
-                        // Точечная проблема — красный кружок с "!"
+                        // Point issue — red circle with "!"
                         const marker = L.marker([p.lat, p.lng], { icon: problemIcon() });
                         marker.bindPopup(`
-                            <b>${p.title_ru || 'Без названия'}</b><br/>
-                            📍 ${p.region || 'Не указан'}<br/>
-                            🏷 ${p.category || 'Другое'}<br/>
+                            <b>${p.title_ru || 'Untitled'}</b><br/>
+                            📍 ${p.region || 'Not specified'}<br/>
+                            🏷 ${p.category || 'Other'}<br/>
                             📊 ${STATUS_LABELS[p.status] || p.status}
                             ${p.created_at ? `<br/>🕐 ${new Date(p.created_at).toLocaleDateString()}` : ''}
                             ${p.ai_verdict ? `<br/><span style="color:#4caf50">🤖 ${p.ai_verdict}</span>` : ''}
@@ -872,13 +881,13 @@
                 if (selectedPoint && selectedMarker) selectedMarker.addTo(map);
             }
 
-            // ===== ОТРИСОВКА СПИСКА ПРОБЛЕМ =====
+            // ===== RENDERING THE ISSUE LIST =====
             function renderProblems() {
                 const container = document.getElementById('problemList');
                 if (!container) return;
                 container.innerHTML = '';
                 if (problems.length === 0) {
-                    container.innerHTML = '<div class="loading">✅ Проблем пока нет</div>';
+                    container.innerHTML = '<div class="loading">✅ No issues yet</div>';
                     return;
                 }
                 problems.slice(0, 50).forEach((p) => {
@@ -889,17 +898,17 @@
                     if (status === 'confirmed') badgeClass = 'badge ai';
                     else if (status === 'rejected') badgeClass = 'badge pending';
 
-                    const coordsText = p.is_road ? '🚧 вся дорога' : (p.lat != null && p.lng != null)
-                        ? `${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}` : '📍 координаты не указаны';
+                    const coordsText = p.is_road ? '🚧 whole road' : (p.lat != null && p.lng != null)
+                        ? `${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}` : '📍 no coordinates';
 
                     div.innerHTML = `
                         <div class="title">
-                            <span>${p.title_ru || 'Без названия'}</span>
+                            <span>${p.title_ru || 'Untitled'}</span>
                             <span class="${badgeClass}">${STATUS_LABELS[status] || status}</span>
                         </div>
                         <div class="meta">
-                            <span>📍 ${p.region || 'Не указан'}</span>
-                            <span>📂 ${p.category || 'Другое'}</span>
+                            <span>📍 ${p.region || 'Not specified'}</span>
+                            <span>📂 ${p.category || 'Other'}</span>
                             ${p.created_at ? `<span>🕐 ${new Date(p.created_at).toLocaleDateString()}</span>` : ''}
                         </div>
                         <div class="coords">${coordsText}</div>
@@ -909,7 +918,7 @@
                 });
             }
 
-            // ===== ОТПРАВКА ПРОБЛЕМЫ =====
+            // ===== SUBMITTING AN ISSUE =====
             async function submitProblem() {
                 const submitBtn = document.getElementById('submitProblem');
                 const title = document.getElementById('problemTitle').value.trim();
@@ -917,12 +926,12 @@
                 const category = document.getElementById('problemCategory').value;
                 const file = document.getElementById('problemFile').files[0];
 
-                if (!token) { alert('Сначала войдите в аккаунт (вкладка «Настройки»).'); return; }
-                if (!title) { alert('Укажите заголовок проблемы.'); return; }
-                if (!roadMode && roadPoints.length === 0 && !selectedPoint) { alert('Кликните на карте, чтобы выбрать место (или отметьте всю дорогу).'); return; }
+                if (!token) { alert('Please sign in first (the "Settings" tab).'); return; }
+                if (!title) { alert('Please enter a title for the issue.'); return; }
+                if (!roadMode && roadPoints.length === 0 && !selectedPoint) { alert('Click the map to pick a location (or mark the whole road).'); return; }
 
                 submitBtn.disabled = true;
-                submitBtn.textContent = '⏳ Отправка...';
+                submitBtn.textContent = '⏳ Sending...';
                 try {
                     let imageDataUrl = null;
                     if (file) {
@@ -935,7 +944,7 @@
 
                     const isRoadSubmit = roadPoints.length >= 2 && !roadMode;
                     const body = {
-                        region: region || 'Не указан',
+                        region: region || 'Not specified',
                         category: category || 'other',
                         severity: 'med',
                         titleRu: title,
@@ -954,33 +963,33 @@
                     problems.unshift(data);
                     renderProblems();
                     renderMapMarkers();
-                    document.getElementById('consoleMessage').innerText = `✅ Проблема добавлена!${data.ai_verdict ? ' 🤖 ' + data.ai_verdict : ''}`;
+                    document.getElementById('consoleMessage').innerText = `✅ Issue added!${data.ai_verdict ? ' 🤖 ' + data.ai_verdict : ''}`;
 
                     window.clearSelectedPoint();
                     cancelRoadMode();
                     document.getElementById('problemTitle').value = '';
                     document.getElementById('problemFile').value = '';
                 } catch (err) {
-                    alert('Ошибка при добавлении: ' + err.message);
+                    alert('Error adding issue: ' + err.message);
                 } finally {
                     submitBtn.disabled = false;
-                    submitBtn.textContent = 'Отправить на проверку';
+                    submitBtn.textContent = 'Submit for review';
                 }
             }
 
-            // ===== РЕГИСТРАЦИЯ / ВХОД / ВЫХОД =====
+            // ===== REGISTER / SIGN IN / SIGN OUT =====
             async function register(email, password) {
                 try {
                     const data = await apiRequest('/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
                     applySession(data);
-                    showRegMsg('✅ Регистрация успешна!', true);
+                    showRegMsg('✅ Registration successful!', true);
                 } catch (err) { showRegMsg('❌ ' + err.message, false); }
             }
             async function login(email, password) {
                 try {
                     const data = await apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
                     applySession(data);
-                    showRegMsg('✅ Вход выполнен!', true);
+                    showRegMsg('✅ Signed in!', true);
                     loadProblems();
                 } catch (err) { showRegMsg('❌ ' + err.message, false); }
             }
@@ -988,7 +997,7 @@
                 token = null; user = null;
                 localStorage.removeItem('token'); localStorage.removeItem('user');
                 updateUI();
-                showRegMsg('👋 Вы вышли', null);
+                showRegMsg('👋 You signed out', null);
             }
             function applySession(data) {
                 token = data.token;
@@ -1003,55 +1012,55 @@
                 el.className = 'reg-msg' + (ok === true ? ' success' : ok === false ? ' error' : '');
             }
 
-            // ===== АДМИН-ПАНЕЛЬ =====
+            // ===== ADMIN PANEL =====
             async function loadAdminSettings() {
                 if (!isAdmin()) return;
                 try {
                     const s = await apiRequest('/admin/settings');
-                    document.getElementById('deepseekKeyStatus').textContent = s.deepseekKeySet ? '🔑 Ключ сохранён' : '⚠️ Ключ не задан — проверка фото ИИ отключена';
-                    document.getElementById('priceApiStatus').textContent = s.priceApiKeySet ? '🔑 Провайдер настроен' : '⚠️ Провайдер не настроен — цены обновляются только вручную';
+                    document.getElementById('deepseekKeyStatus').textContent = s.deepseekKeySet ? '🔑 Key saved' : '⚠️ No key set — AI photo review is disabled';
+                    document.getElementById('priceApiStatus').textContent = s.priceApiKeySet ? '🔑 Provider configured' : '⚠️ No provider configured — prices only update manually';
                     document.getElementById('priceApiUrlInput').value = s.priceApiUrl || '';
-                } catch { /* тихо игнорируем — не критично для остального интерфейса */ }
+                } catch { /* fail silently — not critical for the rest of the UI */ }
             }
             async function saveDeepseekKey() {
                 const val = document.getElementById('deepseekKeyInput').value;
                 try {
                     const s = await apiRequest('/admin/settings', { method: 'PUT', body: JSON.stringify({ deepseekApiKey: val }) });
-                    document.getElementById('deepseekKeyStatus').textContent = s.deepseekKeySet ? '🔑 Ключ сохранён' : 'Ключ очищен';
+                    document.getElementById('deepseekKeyStatus').textContent = s.deepseekKeySet ? '🔑 Key saved' : 'Key cleared';
                     document.getElementById('deepseekKeyInput').value = '';
-                } catch (err) { alert('Ошибка: ' + err.message); }
+                } catch (err) { alert('Error: ' + err.message); }
             }
             async function savePriceApi() {
                 const priceApiUrl = document.getElementById('priceApiUrlInput').value.trim();
                 const priceApiKey = document.getElementById('priceApiKeyInput').value;
                 try {
                     const s = await apiRequest('/admin/settings', { method: 'PUT', body: JSON.stringify({ priceApiUrl, priceApiKey }) });
-                    document.getElementById('priceApiStatus').textContent = s.priceApiKeySet ? '🔑 Провайдер настроен' : 'Токен очищен';
+                    document.getElementById('priceApiStatus').textContent = s.priceApiKeySet ? '🔑 Provider configured' : 'Token cleared';
                     document.getElementById('priceApiKeyInput').value = '';
-                } catch (err) { alert('Ошибка: ' + err.message); }
+                } catch (err) { alert('Error: ' + err.message); }
             }
             async function addStationManually() {
                 const name = document.getElementById('stationName').value.trim();
-                if (!name) { alert('Введите название АЗС.'); return; }
-                if (!selectedPoint) { alert('Сначала кликните на карте, чтобы выбрать место АЗС.'); return; }
+                if (!name) { alert('Enter the station name.'); return; }
+                if (!selectedPoint) { alert('First click the map to pick the station location.'); return; }
                 try {
                     await apiRequest('/stations', { method: 'POST', body: JSON.stringify({ name, lat: selectedPoint.lat, lng: selectedPoint.lng }) });
                     document.getElementById('stationName').value = '';
                     window.clearSelectedPoint();
                     await loadStations();
-                    document.getElementById('consoleMessage').innerText = '✅ АЗС добавлена';
-                } catch (err) { alert('Ошибка: ' + err.message); }
+                    document.getElementById('consoleMessage').innerText = '✅ Station added';
+                } catch (err) { alert('Error: ' + err.message); }
             }
 
-            // ===== ОБНОВЛЕНИЕ UI =====
+            // ===== UI UPDATES =====
             function updateUI() {
                 const userBadge = document.getElementById('userBadge');
-                if (userBadge) userBadge.innerText = '👤 ' + (user ? user.email + (isAdmin() ? ' (админ)' : '') : 'гость');
+                if (userBadge) userBadge.innerText = '👤 ' + (user ? user.email + (isAdmin() ? ' (admin)' : '') : 'guest');
 
                 document.getElementById('regButton').style.display = token ? 'none' : 'block';
                 document.getElementById('loginButton').style.display = token ? 'none' : 'block';
                 document.getElementById('logoutButton').style.display = token ? 'block' : 'none';
-                document.getElementById('userStatusBox').innerText = '👤 Вы: ' + (user ? user.email : 'гость');
+                document.getElementById('userStatusBox').innerText = '👤 You: ' + (user ? user.email : 'guest');
 
                 document.getElementById('submitProblem').disabled = !token;
 
@@ -1060,11 +1069,11 @@
                 if (isAdmin()) loadAdminSettings();
             }
 
-            // ===== ВКЛАДКИ / ТЕМА =====
+            // ===== TABS / THEME =====
             function switchTab(tabId) {
                 document.querySelectorAll('.tab').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tabId));
                 document.querySelectorAll('.page').forEach((page) => page.classList.toggle('active', page.id === 'page-' + tabId));
-                if (tabId === 'map' && map) setTimeout(() => map.invalidateSize(), 50); // карта была скрыта — пересчитать размер
+                if (tabId === 'map' && map) setTimeout(() => map.invalidateSize(), 50); // the map was hidden — recalculate its size
             }
             function applyTheme(theme) {
                 document.body.classList.toggle('light', theme === 'light');
@@ -1072,7 +1081,7 @@
                 localStorage.setItem('theme', theme);
             }
 
-            // ===== ЗАПУСК =====
+            // ===== STARTUP =====
             document.addEventListener('DOMContentLoaded', () => {
                 initMap();
                 updateUI();
@@ -1080,6 +1089,10 @@
                 loadProblems();
                 loadStations();
                 setInterval(() => { loadProblems(); loadStations(); }, REFRESH_MS);
+                // Belt-and-suspenders: force a station/price re-fetch every 24h even if
+                // the tab stays open that long (the server also re-syncs on its own —
+                // see backend/server.js — so this just keeps this tab in sync with it).
+                setInterval(() => { loadStations(); }, STATION_PRICE_REFRESH_MS);
 
                 document.querySelectorAll('.tab').forEach((btn) => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
                 document.querySelectorAll('.theme-btn').forEach((btn) => btn.addEventListener('click', () => applyTheme(btn.dataset.theme)));
@@ -1100,7 +1113,7 @@
                 document.getElementById('chatSend').addEventListener('click', () => {
                     const input = document.getElementById('chatInput');
                     if (!input.value.trim()) return;
-                    document.getElementById('consoleMessage').innerText = '💬 Сообщение отправлено в поддержку (демо)';
+                    document.getElementById('consoleMessage').innerText = '💬 Message sent to support (demo)';
                     input.value = '';
                 });
             });

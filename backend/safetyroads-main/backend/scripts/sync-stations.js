@@ -72,17 +72,26 @@ async function upsert(station) {
   );
 }
 
-async function main() {
-  const bbox = process.argv[2] || DEFAULT_BBOX;
+// Reusable entry point (used by both the CLI below and server.js's automatic
+// 24h scheduler). Does NOT close the pool — the caller owns that.
+async function syncStations(bbox = DEFAULT_BBOX) {
   console.log(`Fetching gas stations from Overpass for bbox ${bbox} ...`);
   const stations = await fetchStations(bbox);
   console.log(`Got ${stations.length} stations, upserting ...`);
   for (const s of stations) await upsert(s);
   console.log("Done.");
-  await pool.end();
+  return stations.length;
 }
 
-main().catch((err) => {
-  console.error("sync-stations failed:", err);
-  process.exit(1);
-});
+module.exports = { syncStations };
+
+// Only run as a standalone script (and close the pool) when invoked directly
+// via `node scripts/sync-stations.js`, not when required by server.js.
+if (require.main === module) {
+  syncStations(process.argv[2])
+    .then(() => pool.end())
+    .catch((err) => {
+      console.error("sync-stations failed:", err);
+      process.exit(1);
+    });
+}
