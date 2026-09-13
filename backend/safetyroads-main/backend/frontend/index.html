@@ -502,7 +502,24 @@
                 max-width: 100%;
             }
         }
-    </style>
+    
+        .map-actions { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 12px; }
+        .map-action-btn { flex:1; min-width:145px; border:1px solid #31445c; background:#1a2535; color:#e8edf5; border-radius:14px; padding:10px 12px; cursor:pointer; font-weight:700; }
+        .map-action-btn.active { background:#f5a623; color:#0b0e14; border-color:#f5a623; }
+        .data-modal { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:9999; display:none; padding:18px; align-items:flex-end; justify-content:center; }
+        .data-modal.open { display:flex; }
+        .data-sheet { width:min(760px,100%); max-height:82vh; overflow:auto; background:#131a24; border:1px solid #31445c; border-radius:22px 22px 12px 12px; padding:16px; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+        .data-sheet-head { display:flex; justify-content:space-between; gap:10px; align-items:center; position:sticky; top:0; background:#131a24; padding-bottom:10px; z-index:2; }
+        .data-close { border:0; background:#26344a; color:#fff; width:34px; height:34px; border-radius:50%; cursor:pointer; }
+        .station-row { padding:12px 0; border-bottom:1px solid #29394e; }
+        .station-row strong { display:block; margin-bottom:4px; }
+        .price-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; font-size:.78rem; }
+        .price-chip { background:#1a2535; padding:6px; border-radius:8px; text-align:center; }
+        .source-link { color:#f5a623; text-decoration:none; font-size:.72rem; }
+        .data-note { color:#7e92b0; font-size:.72rem; line-height:1.4; margin:8px 0; }
+        .auto-problem { border-left-color:#ff7043 !important; }
+        @media(max-width:520px){ .price-grid{grid-template-columns:repeat(2,1fr)} }
+</style>
 </head>
 <body>
     <div class="app">
@@ -524,6 +541,10 @@
             <!-- ===== MAP ===== -->
             <div id="page-map" class="page active">
                 <div id="map"></div>
+                <div class="map-actions">
+                    <button type="button" class="map-action-btn" id="gasStationsBtn">⛽ АЗС России</button>
+                    <button type="button" class="map-action-btn" id="roadProblemsBtn">🚧 Дорожные проблемы</button>
+                </div>
                 <div class="map-hint">🖱 Click the map to pick the issue's location</div>
                 <div id="selectedCoords" class="selected-marker-info" style="display:none;">
                     📍 Selected: <span id="coordDisplay">55.76, 37.64</span>
@@ -583,7 +604,7 @@
                     </div>
                     <div class="settings-row">
                         <span>🌐 Language</span>
-                        <span style="color:#b0c7e0;">English</span>
+                        <div style="display:flex;gap:6px;"><button type="button" class="theme-btn active" id="langRu">Русский</button><button type="button" class="theme-btn" id="langEn">English</button></div>
                     </div>
                 </div>
 
@@ -640,6 +661,13 @@
         </div>
     </div>
 
+
+        <div id="dataModal" class="data-modal" role="dialog" aria-modal="true">
+            <div class="data-sheet">
+                <div class="data-sheet-head"><strong id="dataModalTitle">⛽ АЗС России</strong><button class="data-close" id="dataModalClose">✕</button></div>
+                <div id="dataModalBody"></div>
+            </div>
+        </div>
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
@@ -650,7 +678,7 @@
             const API_URL = window.location.origin + '/api';
             // For local development: const API_URL = 'http://localhost:8080/api';
             const REFRESH_MS = 45000; // how often to re-fetch issues/stations from the server
-            const STATION_PRICE_REFRESH_MS = 24 * 60 * 60 * 1000; // gas station markers + prices are also force-refreshed every 24h
+            const STATION_PRICE_REFRESH_MS = 24 * 60 * 60 * 1000; // gas station data is refreshed every 24h
 
             // ===== STATE =====
             let token = localStorage.getItem('token');
@@ -841,6 +869,36 @@
                 }
             };
 
+
+            function esc(v) { return String(v ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+            function priceText(v) { return v != null ? `${Number(v).toFixed(1)} ₽/л` : '—'; }
+            function stationRowHtml(s) {
+                return `<div class="station-row">
+                    <strong>⛽ ${esc(s.name)}${s.brand ? ` · ${esc(s.brand)}` : ''}</strong>
+                    <div class="price-grid">
+                      <div class="price-chip">АИ-92<br><b>${priceText(s.price_92)}</b></div>
+                      <div class="price-chip">АИ-95<br><b>${priceText(s.price_95)}</b></div>
+                      <div class="price-chip">АИ-98<br><b>${priceText(s.price_98)}</b></div>
+                      <div class="price-chip">ДТ<br><b>${priceText(s.price_dt)}</b></div>
+                    </div>
+                    <div class="data-note">📍 ${Number(s.lat).toFixed(5)}, ${Number(s.lng).toFixed(5)} · ${s.source || 'OSM'} · обновлено ${s.updated_at ? new Date(s.updated_at).toLocaleString() : '—'}</div>
+                    ${s.source_url ? `<a class="source-link" href="${esc(s.source_url)}" target="_blank" rel="noopener">Источник</a>` : ''}
+                </div>`;
+            }
+            function openDataModal(type) {
+                const modal=document.getElementById('dataModal'), title=document.getElementById('dataModalTitle'), body=document.getElementById('dataModalBody');
+                modal.classList.add('open');
+                if(type==='stations') {
+                    title.textContent='⛽ АЗС России';
+                    const withPrices=stations.filter(x=>x.price_92!=null||x.price_95!=null||x.price_98!=null||x.price_dt!=null).length;
+                    body.innerHTML=`<div class="data-note">Показаны станции России, загруженные в базу. Точные цены конкретной АЗС появляются после подключения провайдера цен (например Benzup). Без него геоданные АЗС берутся из OpenStreetMap, а цены остаются пустыми.</div>${stations.length ? stations.map(stationRowHtml).join('') : '<div class="loading">АЗС пока не загружены.</div>'}`;
+                } else {
+                    title.textContent='🚧 Дорожные проблемы России';
+                    const auto=problems.filter(p=>p.source==='OpenStreetMap');
+                    body.innerHTML=`<div class="data-note">Автоматически импортируются только объекты РФ из OpenStreetMap: ремонт/строительство, перекрытия и ограничения движения. Обновление выполняется сервером каждые 24 часа.</div>${auto.length ? auto.map(p=>`<div class="station-row"><strong>🚧 ${esc(p.title_ru)}</strong><div class="data-note">${esc(p.category)} · ${esc(p.region)} · ${p.lat}, ${p.lng}</div>${p.source_url?`<a class="source-link" href="${esc(p.source_url)}" target="_blank" rel="noopener">Источник OpenStreetMap</a>`:''}</div>`).join('') : '<div class="loading">Автоматические дорожные проблемы пока не загружены.</div>'}`;
+                }
+            }
+
             function renderMapMarkers() {
                 if (!map) return;
                 clearMapLayers();
@@ -849,8 +907,8 @@
                     if (p.status === 'rejected') return; // rejected reports don't clutter the map
                     if (p.is_road && Array.isArray(p.route) && p.route.length >= 2) {
                         // Whole road is bad — solid red line
-                        const line = L.polyline(p.route, { color: '#e53935', weight: 8, opacity: 0.85 });
-                        line.bindPopup(`<b>🚧 ${p.title_ru || 'Bad road'}</b><br/>📍 ${p.region}<br/>📊 ${STATUS_LABELS[p.status] || p.status}`);
+                        const line = L.polyline(p.route, { color: p.source === 'OpenStreetMap' ? '#ff7043' : '#e53935', weight: 8, opacity: 0.85 });
+                        line.bindPopup(`<b>🚧 ${p.title_ru || 'Bad road'}</b><br/>📍 ${p.region}<br/>📊 ${STATUS_LABELS[p.status] || p.status}${p.source_url ? `<br/><a href='${p.source_url}' target='_blank' rel='noopener'>Source: ${p.source || 'internet'}</a>` : ''}`);
                         line.addTo(map);
                         mapLayers.push(line);
                     } else if (p.lat != null && p.lng != null) {
@@ -862,7 +920,7 @@
                             🏷 ${p.category || 'Other'}<br/>
                             📊 ${STATUS_LABELS[p.status] || p.status}
                             ${p.created_at ? `<br/>🕐 ${new Date(p.created_at).toLocaleDateString()}` : ''}
-                            ${p.ai_verdict ? `<br/><span style="color:#4caf50">🤖 ${p.ai_verdict}</span>` : ''}
+                            ${p.ai_verdict ? `<br/><span style="color:#4caf50">🤖 ${p.ai_verdict}</span>` : ''}${p.source_url ? `<br/><a href='${p.source_url}' target='_blank' rel='noopener'>Source: ${p.source || 'internet'}</a>` : ''}
                         `);
                         marker.addTo(map);
                         mapLayers.push(marker);
@@ -1081,10 +1139,24 @@
                 localStorage.setItem('theme', theme);
             }
 
+
+            function applyLanguage(lang) {
+                localStorage.setItem('safetyroad_lang', lang);
+                const ru = lang === 'ru';
+                document.getElementById('langRu').classList.toggle('active', ru);
+                document.getElementById('langEn').classList.toggle('active', !ru);
+                document.querySelector('[data-tab="map"]').textContent = ru ? '🗺 Карта' : '🗺 Map';
+                document.querySelector('[data-tab="problems"]').textContent = ru ? '⚠️ Проблемы' : '⚠️ Issues';
+                document.querySelector('[data-tab="settings"]').textContent = ru ? '⚙️ Настройки' : '⚙️ Settings';
+                document.getElementById('gasStationsBtn').textContent = ru ? '⛽ АЗС России' : '⛽ Russian fuel stations';
+                document.getElementById('roadProblemsBtn').textContent = ru ? '🚧 Дорожные проблемы' : '🚧 Road problems';
+            }
+
             // ===== STARTUP =====
             document.addEventListener('DOMContentLoaded', () => {
                 initMap();
                 updateUI();
+                applyLanguage(localStorage.getItem('safetyroad_lang') || 'ru');
                 applyTheme(localStorage.getItem('theme') || 'light');
                 loadProblems();
                 loadStations();
@@ -1105,6 +1177,13 @@
                 document.getElementById('regButton').addEventListener('click', () => register(document.getElementById('regEmail').value.trim(), document.getElementById('regPass').value));
                 document.getElementById('loginButton').addEventListener('click', () => login(document.getElementById('regEmail').value.trim(), document.getElementById('regPass').value));
                 document.getElementById('logoutButton').addEventListener('click', logout);
+
+                document.getElementById('gasStationsBtn').addEventListener('click', () => openDataModal('stations'));
+                document.getElementById('roadProblemsBtn').addEventListener('click', () => openDataModal('problems'));
+                document.getElementById('dataModalClose').addEventListener('click', () => document.getElementById('dataModal').classList.remove('open'));
+                document.getElementById('dataModal').addEventListener('click', (e) => { if (e.target.id === 'dataModal') e.currentTarget.classList.remove('open'); });
+                document.getElementById('langRu').addEventListener('click', () => applyLanguage('ru'));
+                document.getElementById('langEn').addEventListener('click', () => applyLanguage('en'));
 
                 document.getElementById('saveDeepseekKey').addEventListener('click', saveDeepseekKey);
                 document.getElementById('savePriceApi').addEventListener('click', savePriceApi);

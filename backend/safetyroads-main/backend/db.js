@@ -61,9 +61,19 @@ async function initSchema() {
       price_dt NUMERIC,
       source TEXT NOT NULL DEFAULT 'manual', -- 'manual' | 'osm'
       osm_id TEXT UNIQUE, -- prevents duplicate rows when the sync script re-runs
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      source_updated_at TIMESTAMPTZ,
+      source_url TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_stations_coords ON gas_stations(lat, lng);
+    ALTER TABLE gas_stations ADD COLUMN IF NOT EXISTS source_updated_at TIMESTAMPTZ;
+    ALTER TABLE gas_stations ADD COLUMN IF NOT EXISTS source_url TEXT;
+
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS source TEXT;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS source_url TEXT;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS source_updated_at TIMESTAMPTZ;
+    CREATE INDEX IF NOT EXISTS idx_problems_source ON problems(source);
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_problems_source_url ON problems(source_url) WHERE source_url IS NOT NULL;
 
     -- Single-row table: only the admin can ever write to it (see routes/admin.js).
     -- The DeepSeek key lives here, server-side, never sent to the browser.

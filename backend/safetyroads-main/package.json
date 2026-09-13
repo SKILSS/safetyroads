@@ -9,7 +9,8 @@
     "dev": "nodemon server.js",
     "create-admin": "node scripts/create-admin.js",
     "sync-stations": "node scripts/sync-stations.js",
-    "sync-prices": "node scripts/sync-prices.js"
+    "sync-prices": "node scripts/sync-prices.js",
+    "sync-road-problems": "node scripts/sync-road-problems.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

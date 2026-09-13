@@ -5,14 +5,15 @@ const helmet = require("helmet");
 const cors = require("cors");
 const compression = require("compression");
 
-const { pool, initSchema } = require("./db");
-const { apiLimiter, authLimiter, authSlowDown } = require("./middleware/security");
-const authRoutes = require("./routes/auth");
-const problemsRoutes = require("./routes/problems");
-const adminRoutes = require("./routes/admin");
-const stationsRoutes = require("./routes/stations");
-const { syncStations } = require("./scripts/sync-stations");
-const { syncPrices } = require("./scripts/sync-prices");
+const { pool, initSchema } = require("./backend/db");
+const { apiLimiter, authLimiter, authSlowDown } = require("./backend/middleware/security");
+const authRoutes = require("./backend/routes/auth");
+const problemsRoutes = require("./backend/routes/problems");
+const adminRoutes = require("./backend/routes/admin");
+const stationsRoutes = require("./backend/routes/stations");
+const { syncStations } = require("./backend/scripts/sync-stations");
+const { syncPrices } = require("./backend/scripts/sync-prices");
+const { syncRoadProblems } = require("./backend/scripts/sync-road-problems");
 
 const app = express();
 app.set("trust proxy", 1); // needed behind Render/Railway/Cloudflare for real client IPs
@@ -58,6 +59,11 @@ async function runDailyStationSync() {
     await syncStations();
   } catch (err) {
     console.error("Scheduled station sync failed:", err);
+  }
+  try {
+    await syncRoadProblems();
+  } catch (err) {
+    console.error("Scheduled road-problem sync failed:", err);
   }
   try {
     await syncPrices();

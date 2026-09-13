@@ -7,7 +7,18 @@ const router = express.Router();
 
 // Public: the map needs this with no login, same as /api/problems.
 router.get("/", async (req, res) => {
-  const result = await pool.query("SELECT * FROM gas_stations ORDER BY updated_at DESC LIMIT 2000");
+  const { minLat, minLng, maxLat, maxLng } = req.query;
+  let result;
+  if ([minLat, minLng, maxLat, maxLng].every(v => Number.isFinite(Number(v)))) {
+    result = await pool.query(
+      `SELECT * FROM gas_stations
+       WHERE lat BETWEEN $1 AND $3 AND lng BETWEEN $2 AND $4
+       ORDER BY updated_at DESC LIMIT 5000`,
+      [Number(minLat), Number(minLng), Number(maxLat), Number(maxLng)]
+    );
+  } else {
+    result = await pool.query("SELECT * FROM gas_stations ORDER BY updated_at DESC LIMIT 25000");
+  }
   res.set("Cache-Control", "public, max-age=30");
   res.json(result.rows);
 });
