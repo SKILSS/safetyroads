@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SafetyRoad</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            transition: background 0.2s, color 0.2s, border 0.2s;
+        }
+        body {
+            background: #0b0e14;
+            color: #e8edf5;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .app {
+            width: 100%;
+            max-width: 480px;
+            background: #131a24;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+        }
+        .header {
+            padding: 16px 20px 10px;
+            background: #1c2532;
+            border-bottom: 1px solid #2a3548;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-weight: 700;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #f6b83d, #f5a623);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .logo small {
+            font-size: 0.65rem;
+            -webkit-text-fill-color: #8899bb;
+            color: #8899bb;
+            margin-left: 6px;
+        }
+        .user-badge {
+            background: #2e3b4e;
+            padding: 4px 14px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            color: #b0c7e0;
+            cursor: pointer;
+        }
+        .tabs {
+            display: flex;
+            background: #0f1722;
+            border-bottom: 1px solid #2a3548;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .tab {
+            flex: 1;
+            padding: 12px 0;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #7a8aa0;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .tab.active {
+            color: #f5c542;
+            border-bottom-color: #f5c542;
+            background: #1a2330;
+        }
+        .content {
+            flex: 1;
+            padding: 16px 16px 80px;
+            overflow-y: auto;
+        }
+        .page {
+            display: none;
+            animation: fadeIn 0.2s ease;
+        }
+        .page.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0.3;
+                transform: translateY(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        #map {
+            height: 340px;
+            border-radius: 16px;
+            border: 1px solid #2f3d52;
+            margin-bottom: 10px;
+            background: #1a2535;
+            cursor: crosshair;
+        }
+        /* Hide the Leaflet attribution control entirely (no "Leaflet" link, no flag icon) */
+        .leaflet-control-attribution {
+            display: none !important;
+        }
+        .map-footer {
+            font-size: 0.8rem;
+            color: #7e92b0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            margin-bottom: 12px;
+        }
+        .map-hint {
+            background: #1a2535;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            color: #f5a623;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+        .gas-prices {
+            background: #1a2535;
+            padding: 8px 14px;
+            border-radius: 40px;
+            display: inline-block;
+            font-size: 0.8rem;
+            color: #b0c7e0;
+        }
+        .gas-prices span {
+            margin-right: 12px;
+        }
+        .problem-item {
+            background: #1b2635;
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            border-left: 5px solid #f5a623;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        .problem-item .title {
+            font-weight: 600;
+            font-size: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .problem-item .meta {
+            font-size: 0.75rem;
+            color: #9aafcc;
+            margin-top: 6px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .problem-item .coords {
+            font-size: 0.7rem;
+            color: #7e92b0;
+            margin-top: 4px;
+            font-family: monospace;
+        }
+        .badge {
+            padding: 2px 14px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .badge.ai {
+            background: #2d5a3d;
+            color: #b0e0b0;
+        }
+        .badge.pending {
+            background: #6a5a2a;
+            color: #f5d98a;
+        }
+        .badge.new {
+            background: #4a5a7a;
+            color: #b0c7e0;
+        }
+        .add-form {
+            background: #1f2d40;
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 20px;
+            border: 1px dashed #3e5570;
+        }
+        .add-form input,
+        .add-form textarea,
+        .add-form select,
+        .add-form button {
+            width: 100%;
+            margin-top: 8px;
+            padding: 10px 14px;
+            border-radius: 30px;
+            border: 1px solid #31445c;
+            background: #101b28;
+            color: #dce6f0;
+            font-size: 0.9rem;
+        }
+        .add-form select option {
+            background: #1a2535;
+        }
+        .add-form .coord-row {
+            display: flex;
+            gap: 8px;
+        }
+        .add-form .coord-row input {
+            flex: 1;
+        }
+        .add-form button {
+            background: #f5a623;
+            color: #111;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+        .add-form button:hover {
+            background: #e0961a;
+        }
+        .add-form button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .file-input {
+            padding: 6px 10px;
+            background: #101b28;
+            border: 1px solid #3e5570;
+            border-radius: 30px;
+            color: #b0c7e0;
+        }
+        .settings-card {
+            background: #1a2535;
+            border-radius: 16px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+        }
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #29394e;
+        }
+        .settings-row:last-child {
+            border-bottom: none;
+        }
+        .theme-group {
+            display: flex;
+            gap: 12px;
+        }
+        .theme-btn {
+            background: #26344a;
+            border: none;
+            padding: 6px 18px;
+            border-radius: 40px;
+            color: #b0c7e0;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .theme-btn.active {
+            background: #f5a623;
+            color: #0b0e14;
+        }
+        .chat-support {
+            background: #1f2d40;
+            padding: 6px 14px;
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            max-width: 200px;
+        }
+        .chat-support input {
+            background: transparent;
+            border: none;
+            color: #dce6f0;
+            width: 100%;
+            outline: none;
+        }
+        .chat-support input::placeholder {
+            color: #5a7290;
+        }
+        .chat-support span {
+            cursor: pointer;
+            color: #f5a623;
+            font-weight: bold;
+        }
+        .register-box {
+            background: #1a2535;
+            border-radius: 20px;
+            padding: 20px;
+            margin-top: 10px;
+        }
+        .register-box input {
+            width: 100%;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            border-radius: 40px;
+            border: 1px solid #31445c;
+            background: #101b28;
+            color: #dce6f0;
+        }
+        .register-box .btn-reg {
+            background: #3a6ea5;
+            border: none;
+            padding: 12px;
+            border-radius: 40px;
+            font-weight: 700;
+            color: #fff;
+            width: 100%;
+            cursor: pointer;
+        }
+        .register-box .btn-reg:hover {
+            background: #2f5a8a;
+        }
+        .register-box .btn-logout {
+            background: #6a3a3a;
+            border: none;
+            padding: 12px;
+            border-radius: 40px;
+            font-weight: 700;
+            color: #fff;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .register-box .btn-logout:hover {
+            background: #5a2a2a;
+        }
+        .reg-msg {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #f5a623;
+        }
+        .reg-msg.success {
+            color: #8bc34a;
+        }
+        .reg-msg.error {
+            color: #f44336;
+        }
+        .user-status {
+            margin-top: 12px;
+            color: #b0c7e0;
+            font-size: 0.9rem;
+        }
+        .console {
+            background: #0c141f;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-family: monospace;
+            font-size: 0.7rem;
+            color: #b0c0d0;
+            margin-top: 12px;
+            border-left: 3px solid #f5a623;
+        }
+        .footer {
+            text-align: center;
+            font-size: 0.6rem;
+            color: #4a607a;
+            padding: 8px 0;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #7e92b0;
+        }
+        .selected-marker-info {
+            background: #1a2535;
+            border-radius: 12px;
+            padding: 8px 14px;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            color: #f5a623;
+            border: 1px solid #f5a623;
+        }
+        /* Light theme */
+        body.light .app {
+            background: #eef2f7;
+        }
+        body.light .header {
+            background: #d9e2ed;
+            border-bottom-color: #b8c9dd;
+        }
+        body.light .logo small {
+            -webkit-text-fill-color: #3a5a7a;
+            color: #3a5a7a;
+        }
+        body.light .tab {
+            color: #2f4a6a;
+        }
+        body.light .tab.active {
+            background: #d4e0ed;
+            color: #1f3a55;
+            border-bottom-color: #1f3a55;
+        }
+        body.light .content {
+            background: #eef2f7;
+        }
+        body.light .problem-item {
+            background: #ffffff;
+            border-left-color: #d48c1a;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+        body.light .problem-item .meta {
+            color: #3a5a7a;
+        }
+        body.light .add-form {
+            background: #d9e2ed;
+            border-color: #aabbd0;
+        }
+        body.light .add-form input,
+        body.light .add-form textarea,
+        body.light .add-form select {
+            background: #f4f8ff;
+            color: #1a2a3a;
+            border-color: #b0c4dd;
+        }
+        body.light .settings-card {
+            background: #d9e2ed;
+        }
+        body.light .settings-row {
+            border-color: #b8c9dd;
+        }
+        body.light .theme-btn {
+            background: #c0d0e0;
+            color: #1a2a3a;
+        }
+        body.light .theme-btn.active {
+            background: #d48c1a;
+            color: #fff;
+        }
+        body.light .register-box {
+            background: #d9e2ed;
+        }
+        body.light .register-box input {
+            background: #f4f8ff;
+            color: #1a2a3a;
+            border-color: #b0c4dd;
+        }
+        body.light .chat-support {
+            background: #d0ddee;
+        }
+        body.light .user-status {
+            color: #1f3a55;
+        }
+        body.light .map-footer {
+            color: #3a5a7a;
+        }
+        body.light #map {
+            border-color: #b8c9dd;
+        }
+        body.light .console {
+            background: #d9e2ed;
+            color: #1f3a55;
+        }
+        body.light .badge {
+            background: #c0d0e0;
+            color: #1f3a55;
+        }
+        body.light .badge.ai {
+            background: #b0d0b0;
+            color: #1a3a1a;
+        }
+        body.light .badge.pending {
+            background: #e8d090;
+            color: #3a3a1a;
+        }
+        body.light .gas-prices {
+            background: #d9e2ed;
+            color: #1f3a55;
+        }
+        body.light .map-hint {
+            background: #d9e2ed;
+            color: #d48c1a;
+        }
+        body.light .selected-marker-info {
+            background: #d9e2ed;
+            border-color: #d48c1a;
+            color: #1f3a55;
+        }
+        @media (max-width: 480px) {
+            .app {
+                max-width: 100%;
+            }
+        }
+    
+        .map-actions { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 12px; }
+        .map-action-btn { flex:1; min-width:145px; border:1px solid #31445c; background:#1a2535; color:#e8edf5; border-radius:14px; padding:10px 12px; cursor:pointer; font-weight:700; }
+        .map-action-btn.active { background:#f5a623; color:#0b0e14; border-color:#f5a623; }
+        .data-modal { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:9999; display:none; padding:18px; align-items:flex-end; justify-content:center; }
+        .data-modal.open { display:flex; }
+        .data-sheet { width:min(760px,100%); max-height:82vh; overflow:auto; background:#131a24; border:1px solid #31445c; border-radius:22px 22px 12px 12px; padding:16px; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+        .data-sheet-head { display:flex; justify-content:space-between; gap:10px; align-items:center; position:sticky; top:0; background:#131a24; padding-bottom:10px; z-index:2; }
+        .data-close { border:0; background:#26344a; color:#fff; width:34px; height:34px; border-radius:50%; cursor:pointer; }
+        .station-row { padding:12px 0; border-bottom:1px solid #29394e; }
+        .station-row strong { display:block; margin-bottom:4px; }
+        .price-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; font-size:.78rem; }
+        .price-chip { background:#1a2535; padding:6px; border-radius:8px; text-align:center; }
+        .source-link { color:#f5a623; text-decoration:none; font-size:.72rem; }
+        .data-note { color:#7e92b0; font-size:.72rem; line-height:1.4; margin:8px 0; }
+        .auto-problem { border-left-color:#ff7043 !important; }
+        @media(max-width:520px){ .price-grid{grid-template-columns:repeat(2,1fr)} }
+</style>
+</head>
+<body>
+    <div class="app">
+        <!-- HEADER -->
+        <div class="header">
+            <div class="logo">SafetyRoad</div>
+            <div class="user-badge" id="userBadge" onclick="document.getElementById('page-settings').scrollIntoView()">👤 guest</div>
+        </div>
+
+        <!-- TABS -->
+        <div class="tabs">
+            <button class="tab active" data-tab="map">🗺 Map</button>
+            <button class="tab" data-tab="problems">⚠️ Issues</button>
+            <button class="tab" data-tab="settings">⚙️ Settings</button>
+        </div>
+
+        <!-- CONTENT -->
+        <div class="content">
+            <!-- ===== MAP ===== -->
+            <div id="page-map" class="page active">
+                <div id="map"></div>
+                <div class="map-actions">
+                    <button type="button" class="map-action-btn" id="gasStationsBtn">⛽ АЗС России</button>
+                    <button type="button" class="map-action-btn" id="roadProblemsBtn">🚧 Дорожные проблемы</button>
+                </div>
+                <div class="map-hint">🖱 Click the map to pick the issue's location</div>
+                <div id="selectedCoords" class="selected-marker-info" style="display:none;">
+                    📍 Selected: <span id="coordDisplay">55.76, 37.64</span>
+                    <button onclick="clearSelectedPoint()" style="background:transparent;border:1px solid #f5a623;color:#f5a623;padding:2px 12px;border-radius:30px;cursor:pointer;margin-left:8px;">✕</button>
+                </div>
+                <div class="map-footer">
+                    <span>🔴 Red circle with "!" — an issue</span>
+                    <span>🔴 Red line — the whole road is bad</span>
+                    <span>⛽ — gas station (click to see prices)</span>
+                </div>
+            </div>
+
+            <!-- ===== ISSUES ===== -->
+            <div id="page-problems" class="page">
+                <div id="problemList">
+                    <div class="loading">⏳ Loading issues...</div>
+                </div>
+
+                <div class="add-form">
+                    <h4 style="margin-bottom:4px;">➕ Report an issue</h4>
+                    <input type="text" id="problemTitle" placeholder="Title (e.g. Pothole in the road)" />
+                    <input type="text" id="problemRegion" placeholder="Region (e.g. Moscow)" />
+                    <select id="problemCategory">
+                        <option value="Roads">🚧 Roads</option>
+                        <option value="Lighting">💡 Lighting</option>
+                        <option value="Utilities">🏠 Utilities</option>
+                        <option value="Litter">🗑 Litter</option>
+                        <option value="other">📌 Other</option>
+                    </select>
+                    <div class="coord-row">
+                        <input type="text" id="problemLat" placeholder="Latitude (click on the map)" readonly />
+                        <input type="text" id="problemLng" placeholder="Longitude (click on the map)" readonly />
+                    </div>
+                    <button type="button" id="roadModeBtn" style="background:#26344a;color:#f5c542;">🚧 Mark the whole road (multiple points)</button>
+                    <div id="roadModeHint" style="display:none;font-size:0.75rem;color:#f5a623;margin-top:6px;">
+                        Click the map to add road points (<span id="roadPointCount">0</span>). When you're done, press "Done".
+                        <button type="button" id="roadModeDone" style="width:auto;display:inline-block;padding:4px 12px;margin:6px 4px 0 0;">✅ Done</button>
+                        <button type="button" id="roadModeCancel" style="width:auto;display:inline-block;padding:4px 12px;margin:6px 0 0;background:#3a2020;">✕ Cancel</button>
+                    </div>
+                    <input type="file" id="problemFile" accept="image/*" class="file-input" />
+                    <button id="submitProblem">Submit for review</button>
+                    <div style="font-size:0.7rem;color:#7e92b0;margin-top:6px;">
+                        🤖 AI will check the photo (if uploaded) • <span style="color:#f5a623;">Click the map</span> to pick coordinates
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== SETTINGS ===== -->
+            <div id="page-settings" class="page">
+                <div class="settings-card">
+                    <div class="settings-row">
+                        <span>🌓 Theme</span>
+                        <div class="theme-group">
+                            <button class="theme-btn" data-theme="dark">Dark</button>
+                            <button class="theme-btn active" data-theme="light">Light</button>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <span>🌐 Language</span>
+                        <div style="display:flex;gap:6px;"><button type="button" class="theme-btn active" id="langRu">Русский</button><button type="button" class="theme-btn" id="langEn">English</button></div>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <div class="settings-row">
+                        <span>💬 Support</span>
+                        <div class="chat-support">
+                            <input type="text" placeholder="Type a message..." id="chatInput" />
+                            <span id="chatSend">➤</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="register-box">
+                    <h4 style="margin-bottom:12px;">🔐 Sign in / Register</h4>
+                    <input type="email" id="regEmail" placeholder="Email" />
+                    <input type="password" id="regPass" placeholder="Password (min. 8 characters)" />
+                    <button class="btn-reg" id="regButton">Register</button>
+                    <button class="btn-reg" id="loginButton" style="background:#4a7a5a;">Sign in</button>
+                    <button class="btn-logout" id="logoutButton" style="display:none;">Sign out</button>
+                    <div class="reg-msg" id="regMessage"></div>
+                    <div class="user-status" id="userStatusBox">👤 You: guest</div>
+                </div>
+
+                <div class="settings-card" id="adminCard" style="display:none;">
+                    <h4 style="margin-bottom:10px;">🛠 Admin panel</h4>
+                    <div class="settings-row" style="display:block;">
+                        <span>🤖 DeepSeek key (AI photo review)</span>
+                        <input type="password" id="deepseekKeyInput" placeholder="Leave blank to keep unchanged" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
+                        <div id="deepseekKeyStatus" style="font-size:0.75rem;color:#7e92b0;margin-top:6px;"></div>
+                        <button type="button" id="saveDeepseekKey" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#f5a623;color:#111;font-weight:700;cursor:pointer;">Save key</button>
+                    </div>
+                    <div class="settings-row" style="display:block;border-top:1px solid #29394e;padding-top:12px;">
+                        <span>⛽ Automatic price updates (provider, e.g. Benzup)</span>
+                        <input type="text" id="priceApiUrlInput" placeholder="Provider URL, e.g. https://api.omt-consult.ru/v2/stations" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
+                        <input type="password" id="priceApiKeyInput" placeholder="Provider bearer token (leave blank to keep unchanged)" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
+                        <div id="priceApiStatus" style="font-size:0.75rem;color:#7e92b0;margin-top:6px;"></div>
+                        <div style="font-size:0.7rem;color:#7e92b0;margin-top:4px;">There's no free live price feed for Russian gas stations — this is a paid provider. Once saved, the server automatically re-syncs stations and prices every 24 hours on its own (no cron setup needed).</div>
+                        <button type="button" id="savePriceApi" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#f5a623;color:#111;font-weight:700;cursor:pointer;">Save price provider</button>
+                    </div>
+                    <div class="settings-row" style="display:block;border-top:1px solid #29394e;padding-top:12px;">
+                        <span>⛽ Add a gas station manually</span>
+                        <input type="text" id="stationName" placeholder="Station name" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
+                        <div style="font-size:0.75rem;color:#7e92b0;margin-top:6px;">Click the map, then press "Add station at selected point"</div>
+                        <button type="button" id="addStationBtn" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#3a6ea5;color:#fff;font-weight:700;cursor:pointer;">➕ Add station at selected point</button>
+                    </div>
+                </div>
+
+                <div class="console">
+                    ⚙️ Console: <span id="consoleMessage">System ready</span>
+                </div>
+                <div class="footer">SafetyRoad — data updates 24/7</div>
+            </div>
+        </div>
+    </div>
+
+
+        <div id="dataModal" class="data-modal" role="dialog" aria-modal="true">
+            <div class="data-sheet">
+                <div class="data-sheet-head"><strong id="dataModalTitle">⛽ АЗС России</strong><button class="data-close" id="dataModalClose">✕</button></div>
+                <div id="dataModalBody"></div>
+            </div>
+        </div>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        (function() {
+            'use strict';
+
+            // ===== CONFIG =====
+            const API_URL = window.location.origin + '/api';
+            // For local development: const API_URL = 'http://localhost:8080/api';
+            const REFRESH_MS = 45000; // how often to re-fetch issues/stations from the server
+            const STATION_PRICE_REFRESH_MS = 24 * 60 * 60 * 1000; // gas station data is refreshed every 24h
+
+            // ===== STATE =====
+            let token = localStorage.getItem('token');
+            let user = JSON.parse(localStorage.getItem('user') || 'null'); // {email, role} | null
+            let problems = [];
+            let stations = [];
+            let map;
+            let selectedPoint = null;
+            let selectedMarker = null;
+            let roadMode = false;
+            let roadPoints = [];
+            let roadPreviewLine = null;
+            let roadPreviewMarkers = [];
+
+            function isAdmin() { return user && user.role === 'admin'; }
+
+            // ===== MAP INITIALIZATION =====
+            function initMap() {
+                // attributionControl: false removes Leaflet's default bottom-right
+                // attribution box (the "Leaflet" link + flag icon) entirely.
+                map = L.map('map', { attributionControl: false }).setView([55.76, 37.64], 11);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19,
+                }).addTo(map);
+                // Re-add a minimal attribution control with no prefix, so only the
+                // required OpenStreetMap credit shows — no "Leaflet" link, no flag.
+                L.control.attribution({ prefix: false }).addTo(map);
+
+                map.on('click', function(e) {
+                    if (roadMode) {
+                        roadPoints.push([e.latlng.lat, e.latlng.lng]);
+                        document.getElementById('roadPointCount').textContent = roadPoints.length;
+                        const dot = L.circleMarker(e.latlng, { radius: 5, color: '#e53935', fillColor: '#e53935', fillOpacity: 1 }).addTo(map);
+                        roadPreviewMarkers.push(dot);
+                        if (roadPreviewLine) map.removeLayer(roadPreviewLine);
+                        if (roadPoints.length >= 2) {
+                            roadPreviewLine = L.polyline(roadPoints, { color: '#e53935', weight: 6, opacity: 0.8 }).addTo(map);
+                        }
+                        return;
+                    }
+                    selectedPoint = e.latlng;
+                    document.getElementById('problemLat').value = selectedPoint.lat.toFixed(6);
+                    document.getElementById('problemLng').value = selectedPoint.lng.toFixed(6);
+                    document.getElementById('coordDisplay').textContent =
+                        selectedPoint.lat.toFixed(6) + ', ' + selectedPoint.lng.toFixed(6);
+                    document.getElementById('selectedCoords').style.display = 'block';
+
+                    if (selectedMarker) map.removeLayer(selectedMarker);
+                    selectedMarker = L.marker(selectedPoint, {
+                        icon: L.divIcon({ className: 'selected-marker', html: '📍', iconSize: [30, 30] })
+                    }).addTo(map);
+
+                    document.getElementById('consoleMessage').innerText =
+                        `📍 Coordinates selected: ${selectedPoint.lat.toFixed(6)}, ${selectedPoint.lng.toFixed(6)}`;
+                });
+            }
+
+            // ===== "WHOLE ROAD IS BAD" MODE =====
+            function clearRoadPreview() {
+                if (roadPreviewLine) { map.removeLayer(roadPreviewLine); roadPreviewLine = null; }
+                roadPreviewMarkers.forEach((m) => map.removeLayer(m));
+                roadPreviewMarkers = [];
+            }
+            function startRoadMode() {
+                window.clearSelectedPoint();
+                roadMode = true;
+                roadPoints = [];
+                document.getElementById('roadModeHint').style.display = 'block';
+                document.getElementById('roadModeBtn').style.display = 'none';
+                document.getElementById('roadPointCount').textContent = '0';
+                clearRoadPreview();
+            }
+            function finishRoadMode() {
+                if (roadPoints.length < 2) {
+                    alert('Mark at least 2 points along the road.');
+                    return;
+                }
+                roadMode = false;
+                document.getElementById('roadModeHint').style.display = 'none';
+                document.getElementById('roadModeBtn').style.display = 'block';
+                document.getElementById('consoleMessage').innerText = `🚧 Road marked: ${roadPoints.length} points. Fill in the form and submit.`;
+            }
+            function cancelRoadMode() {
+                roadMode = false;
+                roadPoints = [];
+                clearRoadPreview();
+                document.getElementById('roadModeHint').style.display = 'none';
+                document.getElementById('roadModeBtn').style.display = 'block';
+            }
+
+            // ===== CLEAR SELECTED POINT =====
+            window.clearSelectedPoint = function() {
+                selectedPoint = null;
+                document.getElementById('problemLat').value = '';
+                document.getElementById('problemLng').value = '';
+                document.getElementById('selectedCoords').style.display = 'none';
+                if (selectedMarker) { map.removeLayer(selectedMarker); selectedMarker = null; }
+            };
+
+            // ===== API CALLS =====
+            async function apiRequest(endpoint, options = {}) {
+                const headers = { 'Content-Type': 'application/json', ...options.headers };
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+                const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({ error: 'Server error' }));
+                    throw new Error(error.error || `HTTP ${response.status}`);
+                }
+                if (response.status === 204) return null;
+                return response.json();
+            }
+
+            // ===== DATA LOADING =====
+            async function loadProblems() {
+                try {
+                    problems = await apiRequest('/problems');
+                    renderProblems();
+                    renderMapMarkers();
+                    document.getElementById('consoleMessage').innerText = `✅ Loaded ${problems.length} issues`;
+                } catch (err) {
+                    document.getElementById('consoleMessage').innerText = `❌ Failed to load issues: ${err.message}`;
+                }
+            }
+            async function loadStations() {
+                try {
+                    stations = await apiRequest('/stations');
+                    renderMapMarkers();
+                } catch (err) {
+                    document.getElementById('consoleMessage').innerText = `❌ Failed to load gas stations: ${err.message}`;
+                }
+            }
+
+            const STATUS_LABELS = { new: 'New', confirmed: 'Confirmed', rejected: 'Rejected' };
+
+            // ===== RENDERING MAP MARKERS =====
+            const mapLayers = []; // all layers we added ourselves (except the base layer and the selected point)
+            function clearMapLayers() {
+                mapLayers.forEach((l) => map.removeLayer(l));
+                mapLayers.length = 0;
+            }
+
+            function problemIcon() {
+                return L.divIcon({
+                    className: 'problem-pin',
+                    html: '<div style="background:#e53935;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.6)">!</div>',
+                    iconSize: [26, 26],
+                    iconAnchor: [13, 13],
+                });
+            }
+
+            function priceLine(label, value) {
+                return `${label}: ${value != null ? Number(value).toFixed(1) + ' ₽' : 'no data'}`;
+            }
+
+            function stationPopupHtml(s) {
+                const lines = [
+                    priceLine('⛽ RON-92', s.price_92),
+                    priceLine('⛽ RON-95', s.price_95),
+                    priceLine('⛽ RON-98', s.price_98),
+                    priceLine('🛢 Diesel', s.price_dt),
+                ].join('<br/>');
+                const updated = s.updated_at ? `<br/><span style="font-size:0.7rem;color:#8899bb">Updated: ${new Date(s.updated_at).toLocaleString()}</span>` : '';
+                const editBtn = isAdmin()
+                    ? `<br/><button onclick="window.__editStationPrices(${s.id})" style="margin-top:6px;padding:4px 10px;border-radius:20px;border:none;background:#3a6ea5;color:#fff;cursor:pointer;">✏️ Update prices</button>`
+                    : '';
+                return `<b>${s.name}${s.brand ? ' (' + s.brand + ')' : ''}</b><br/>${lines}${updated}${editBtn}`;
+            }
+
+            window.__editStationPrices = async function(id) {
+                const s = stations.find((x) => x.id === id);
+                if (!s) return;
+                const p92 = prompt('RON-92, ₽ (leave blank to keep unchanged):', s.price_92 ?? '');
+                const p95 = prompt('RON-95, ₽ (leave blank to keep unchanged):', s.price_95 ?? '');
+                const p98 = prompt('RON-98, ₽ (leave blank to keep unchanged):', s.price_98 ?? '');
+                const dt = prompt('Diesel, ₽ (leave blank to keep unchanged):', s.price_dt ?? '');
+                const body = {};
+                if (p92 !== null && p92 !== '') body.price92 = parseFloat(p92);
+                if (p95 !== null && p95 !== '') body.price95 = parseFloat(p95);
+                if (p98 !== null && p98 !== '') body.price98 = parseFloat(p98);
+                if (dt !== null && dt !== '') body.priceDt = parseFloat(dt);
+                try {
+                    await apiRequest(`/stations/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+                    await loadStations();
+                    document.getElementById('consoleMessage').innerText = '✅ Prices updated';
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                }
+            };
+
+
+            function esc(v) { return String(v ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+            function priceText(v) { return v != null ? `${Number(v).toFixed(1)} ₽/л` : '—'; }
+            function stationRowHtml(s) {
+                return `<div class="station-row">
+                    <strong>⛽ ${esc(s.name)}${s.brand ? ` · ${esc(s.brand)}` : ''}</strong>
+                    <div class="price-grid">
+                      <div class="price-chip">АИ-92<br><b>${priceText(s.price_92)}</b></div>
+                      <div class="price-chip">АИ-95<br><b>${priceText(s.price_95)}</b></div>
+                      <div class="price-chip">АИ-98<br><b>${priceText(s.price_98)}</b></div>
+                      <div class="price-chip">ДТ<br><b>${priceText(s.price_dt)}</b></div>
+                    </div>
+                    <div class="data-note">📍 ${Number(s.lat).toFixed(5)}, ${Number(s.lng).toFixed(5)} · ${s.source || 'OSM'} · обновлено ${s.updated_at ? new Date(s.updated_at).toLocaleString() : '—'}</div>
+                    ${s.source_url ? `<a class="source-link" href="${esc(s.source_url)}" target="_blank" rel="noopener">Источник</a>` : ''}
+                </div>`;
+            }
+            function openDataModal(type) {
+                const modal=document.getElementById('dataModal'), title=document.getElementById('dataModalTitle'), body=document.getElementById('dataModalBody');
+                modal.classList.add('open');
+                if(type==='stations') {
+                    title.textContent='⛽ АЗС России';
+                    const withPrices=stations.filter(x=>x.price_92!=null||x.price_95!=null||x.price_98!=null||x.price_dt!=null).length;
+                    body.innerHTML=`<div class="data-note">Показаны станции России, загруженные в базу. Точные цены конкретной АЗС появляются после подключения провайдера цен (например Benzup). Без него геоданные АЗС берутся из OpenStreetMap, а цены остаются пустыми.</div>${stations.length ? stations.map(stationRowHtml).join('') : '<div class="loading">АЗС пока не загружены.</div>'}`;
+                } else {
+                    title.textContent='🚧 Дорожные проблемы России';
+                    const auto=problems.filter(p=>p.source==='OpenStreetMap');
+                    body.innerHTML=`<div class="data-note">Автоматически импортируются только объекты РФ из OpenStreetMap: ремонт/строительство, перекрытия и ограничения движения. Обновление выполняется сервером каждые 24 часа.</div>${auto.length ? auto.map(p=>`<div class="station-row"><strong>🚧 ${esc(p.title_ru)}</strong><div class="data-note">${esc(p.category)} · ${esc(p.region)} · ${p.lat}, ${p.lng}</div>${p.source_url?`<a class="source-link" href="${esc(p.source_url)}" target="_blank" rel="noopener">Источник OpenStreetMap</a>`:''}</div>`).join('') : '<div class="loading">Автоматические дорожные проблемы пока не загружены.</div>'}`;
+                }
+            }
+
+            function renderMapMarkers() {
+                if (!map) return;
+                clearMapLayers();
+
+                problems.forEach((p) => {
+                    if (p.status === 'rejected') return; // rejected reports don't clutter the map
+                    if (p.is_road && Array.isArray(p.route) && p.route.length >= 2) {
+                        // Whole road is bad — solid red line
+                        const line = L.polyline(p.route, { color: p.source === 'OpenStreetMap' ? '#ff7043' : '#e53935', weight: 8, opacity: 0.85 });
+                        line.bindPopup(`<b>🚧 ${p.title_ru || 'Bad road'}</b><br/>📍 ${p.region}<br/>📊 ${STATUS_LABELS[p.status] || p.status}${p.source_url ? `<br/><a href='${p.source_url}' target='_blank' rel='noopener'>Source: ${p.source || 'internet'}</a>` : ''}`);
+                        line.addTo(map);
+                        mapLayers.push(line);
+                    } else if (p.lat != null && p.lng != null) {
+                        // Point issue — red circle with "!"
+                        const marker = L.marker([p.lat, p.lng], { icon: problemIcon() });
+                        marker.bindPopup(`
+                            <b>${p.title_ru || 'Untitled'}</b><br/>
+                            📍 ${p.region || 'Not specified'}<br/>
+                            🏷 ${p.category || 'Other'}<br/>
+                            📊 ${STATUS_LABELS[p.status] || p.status}
+                            ${p.created_at ? `<br/>🕐 ${new Date(p.created_at).toLocaleDateString()}` : ''}
+                            ${p.ai_verdict ? `<br/><span style="color:#4caf50">🤖 ${p.ai_verdict}</span>` : ''}${p.source_url ? `<br/><a href='${p.source_url}' target='_blank' rel='noopener'>Source: ${p.source || 'internet'}</a>` : ''}
+                        `);
+                        marker.addTo(map);
+                        mapLayers.push(marker);
+                    }
+                });
+
+                stations.forEach((s) => {
+                    const marker = L.marker([s.lat, s.lng], {
+                        icon: L.divIcon({ className: 'gas-icon', html: '⛽', iconSize: [28, 28], iconAnchor: [14, 14] }),
+                    });
+                    marker.bindPopup(stationPopupHtml(s));
+                    marker.addTo(map);
+                    mapLayers.push(marker);
+                });
+
+                if (selectedPoint && selectedMarker) selectedMarker.addTo(map);
+            }
+
+            // ===== RENDERING THE ISSUE LIST =====
+            function renderProblems() {
+                const container = document.getElementById('problemList');
+                if (!container) return;
+                container.innerHTML = '';
+                if (problems.length === 0) {
+                    container.innerHTML = '<div class="loading">✅ No issues yet</div>';
+                    return;
+                }
+                problems.slice(0, 50).forEach((p) => {
+                    const div = document.createElement('div');
+                    div.className = 'problem-item';
+                    const status = p.status || 'new';
+                    let badgeClass = 'badge new';
+                    if (status === 'confirmed') badgeClass = 'badge ai';
+                    else if (status === 'rejected') badgeClass = 'badge pending';
+
+                    const coordsText = p.is_road ? '🚧 whole road' : (p.lat != null && p.lng != null)
+                        ? `${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}` : '📍 no coordinates';
+
+                    div.innerHTML = `
+                        <div class="title">
+                            <span>${p.title_ru || 'Untitled'}</span>
+                            <span class="${badgeClass}">${STATUS_LABELS[status] || status}</span>
+                        </div>
+                        <div class="meta">
+                            <span>📍 ${p.region || 'Not specified'}</span>
+                            <span>📂 ${p.category || 'Other'}</span>
+                            ${p.created_at ? `<span>🕐 ${new Date(p.created_at).toLocaleDateString()}</span>` : ''}
+                        </div>
+                        <div class="coords">${coordsText}</div>
+                        ${p.ai_verdict ? `<div style="font-size:0.7rem;color:#8bc34a;margin-top:4px;">🤖 ${p.ai_verdict}</div>` : ''}
+                    `;
+                    container.appendChild(div);
+                });
+            }
+
+            // ===== SUBMITTING AN ISSUE =====
+            async function submitProblem() {
+                const submitBtn = document.getElementById('submitProblem');
+                const title = document.getElementById('problemTitle').value.trim();
+                const region = document.getElementById('problemRegion').value.trim();
+                const category = document.getElementById('problemCategory').value;
+                const file = document.getElementById('problemFile').files[0];
+
+                if (!token) { alert('Please sign in first (the "Settings" tab).'); return; }
+                if (!title) { alert('Please enter a title for the issue.'); return; }
+                if (!roadMode && roadPoints.length === 0 && !selectedPoint) { alert('Click the map to pick a location (or mark the whole road).'); return; }
+
+                submitBtn.disabled = true;
+                submitBtn.textContent = '⏳ Sending...';
+                try {
+                    let imageDataUrl = null;
+                    if (file) {
+                        imageDataUrl = await new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => resolve(e.target.result);
+                            reader.readAsDataURL(file);
+                        });
+                    }
+
+                    const isRoadSubmit = roadPoints.length >= 2 && !roadMode;
+                    const body = {
+                        region: region || 'Not specified',
+                        category: category || 'other',
+                        severity: 'med',
+                        titleRu: title,
+                        titleEn: title,
+                        imageDataUrl,
+                    };
+                    if (isRoadSubmit) {
+                        body.isRoad = true;
+                        body.route = roadPoints;
+                    } else if (selectedPoint) {
+                        body.lat = selectedPoint.lat;
+                        body.lng = selectedPoint.lng;
+                    }
+
+                    const data = await apiRequest('/problems', { method: 'POST', body: JSON.stringify(body) });
+                    problems.unshift(data);
+                    renderProblems();
+                    renderMapMarkers();
+                    document.getElementById('consoleMessage').innerText = `✅ Issue added!${data.ai_verdict ? ' 🤖 ' + data.ai_verdict : ''}`;
+
+                    window.clearSelectedPoint();
+                    cancelRoadMode();
+                    document.getElementById('problemTitle').value = '';
+                    document.getElementById('problemFile').value = '';
+                } catch (err) {
+                    alert('Error adding issue: ' + err.message);
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit for review';
+                }
+            }
+
+            // ===== REGISTER / SIGN IN / SIGN OUT =====
+            async function register(email, password) {
+                try {
+                    const data = await apiRequest('/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
+                    applySession(data);
+                    showRegMsg('✅ Registration successful!', true);
+                } catch (err) { showRegMsg('❌ ' + err.message, false); }
+            }
+            async function login(email, password) {
+                try {
+                    const data = await apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+                    applySession(data);
+                    showRegMsg('✅ Signed in!', true);
+                    loadProblems();
+                } catch (err) { showRegMsg('❌ ' + err.message, false); }
+            }
+            function logout() {
+                token = null; user = null;
+                localStorage.removeItem('token'); localStorage.removeItem('user');
+                updateUI();
+                showRegMsg('👋 You signed out', null);
+            }
+            function applySession(data) {
+                token = data.token;
+                user = data.user; // {email, role}
+                localStorage.setItem('token', token);
+                localStorage.setItem('user', JSON.stringify(user));
+                updateUI();
+            }
+            function showRegMsg(text, ok) {
+                const el = document.getElementById('regMessage');
+                el.innerText = text;
+                el.className = 'reg-msg' + (ok === true ? ' success' : ok === false ? ' error' : '');
+            }
+
+            // ===== ADMIN PANEL =====
+            async function loadAdminSettings() {
+                if (!isAdmin()) return;
+                try {
+                    const s = await apiRequest('/admin/settings');
+                    document.getElementById('deepseekKeyStatus').textContent = s.deepseekKeySet ? '🔑 Key saved' : '⚠️ No key set — AI photo review is disabled';
+                    document.getElementById('priceApiStatus').textContent = s.priceApiKeySet ? '🔑 Provider configured' : '⚠️ No provider configured — prices only update manually';
+                    document.getElementById('priceApiUrlInput').value = s.priceApiUrl || '';
+                } catch { /* fail silently — not critical for the rest of the UI */ }
+            }
+            async function saveDeepseekKey() {
+                const val = document.getElementById('deepseekKeyInput').value;
+                try {
+                    const s = await apiRequest('/admin/settings', { method: 'PUT', body: JSON.stringify({ deepseekApiKey: val }) });
+                    document.getElementById('deepseekKeyStatus').textContent = s.deepseekKeySet ? '🔑 Key saved' : 'Key cleared';
+                    document.getElementById('deepseekKeyInput').value = '';
+                } catch (err) { alert('Error: ' + err.message); }
+            }
+            async function savePriceApi() {
+                const priceApiUrl = document.getElementById('priceApiUrlInput').value.trim();
+                const priceApiKey = document.getElementById('priceApiKeyInput').value;
+                try {
+                    const s = await apiRequest('/admin/settings', { method: 'PUT', body: JSON.stringify({ priceApiUrl, priceApiKey }) });
+                    document.getElementById('priceApiStatus').textContent = s.priceApiKeySet ? '🔑 Provider configured' : 'Token cleared';
+                    document.getElementById('priceApiKeyInput').value = '';
+                } catch (err) { alert('Error: ' + err.message); }
+            }
+            async function addStationManually() {
+                const name = document.getElementById('stationName').value.trim();
+                if (!name) { alert('Enter the station name.'); return; }
+                if (!selectedPoint) { alert('First click the map to pick the station location.'); return; }
+                try {
+                    await apiRequest('/stations', { method: 'POST', body: JSON.stringify({ name, lat: selectedPoint.lat, lng: selectedPoint.lng }) });
+                    document.getElementById('stationName').value = '';
+                    window.clearSelectedPoint();
+                    await loadStations();
+                    document.getElementById('consoleMessage').innerText = '✅ Station added';
+                } catch (err) { alert('Error: ' + err.message); }
+            }
+
+            // ===== UI UPDATES =====
+            function updateUI() {
+                const userBadge = document.getElementById('userBadge');
+                if (userBadge) userBadge.innerText = '👤 ' + (user ? user.email + (isAdmin() ? ' (admin)' : '') : 'guest');
+
+                document.getElementById('regButton').style.display = token ? 'none' : 'block';
+                document.getElementById('loginButton').style.display = token ? 'none' : 'block';
+                document.getElementById('logoutButton').style.display = token ? 'block' : 'none';
+                document.getElementById('userStatusBox').innerText = '👤 You: ' + (user ? user.email : 'guest');
+
+                document.getElementById('submitProblem').disabled = !token;
+
+                const adminCard = document.getElementById('adminCard');
+                adminCard.style.display = isAdmin() ? 'block' : 'none';
+                if (isAdmin()) loadAdminSettings();
+            }
+
+            // ===== TABS / THEME =====
+            function switchTab(tabId) {
+                document.querySelectorAll('.tab').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tabId));
+                document.querySelectorAll('.page').forEach((page) => page.classList.toggle('active', page.id === 'page-' + tabId));
+                if (tabId === 'map' && map) setTimeout(() => map.invalidateSize(), 50); // the map was hidden — recalculate its size
+            }
+            function applyTheme(theme) {
+                document.body.classList.toggle('light', theme === 'light');
+                document.querySelectorAll('.theme-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.theme === theme));
+                localStorage.setItem('theme', theme);
+            }
+
+
+            function applyLanguage(lang) {
+                localStorage.setItem('safetyroad_lang', lang);
+                const ru = lang === 'ru';
+                document.getElementById('langRu').classList.toggle('active', ru);
+                document.getElementById('langEn').classList.toggle('active', !ru);
+                document.querySelector('[data-tab="map"]').textContent = ru ? '🗺 Карта' : '🗺 Map';
+                document.querySelector('[data-tab="problems"]').textContent = ru ? '⚠️ Проблемы' : '⚠️ Issues';
+                document.querySelector('[data-tab="settings"]').textContent = ru ? '⚙️ Настройки' : '⚙️ Settings';
+                document.getElementById('gasStationsBtn').textContent = ru ? '⛽ АЗС России' : '⛽ Russian fuel stations';
+                document.getElementById('roadProblemsBtn').textContent = ru ? '🚧 Дорожные проблемы' : '🚧 Road problems';
+            }
+
+            // ===== STARTUP =====
+            document.addEventListener('DOMContentLoaded', () => {
+                initMap();
+                updateUI();
+                applyLanguage(localStorage.getItem('safetyroad_lang') || 'ru');
+                applyTheme(localStorage.getItem('theme') || 'light');
+                loadProblems();
+                loadStations();
+                setInterval(() => { loadProblems(); loadStations(); }, REFRESH_MS);
+                // Belt-and-suspenders: force a station/price re-fetch every 24h even if
+                // the tab stays open that long (the server also re-syncs on its own —
+                // see backend/server.js — so this just keeps this tab in sync with it).
+                setInterval(() => { loadStations(); }, STATION_PRICE_REFRESH_MS);
+
+                document.querySelectorAll('.tab').forEach((btn) => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+                document.querySelectorAll('.theme-btn').forEach((btn) => btn.addEventListener('click', () => applyTheme(btn.dataset.theme)));
+
+                document.getElementById('submitProblem').addEventListener('click', submitProblem);
+                document.getElementById('roadModeBtn').addEventListener('click', startRoadMode);
+                document.getElementById('roadModeDone').addEventListener('click', finishRoadMode);
+                document.getElementById('roadModeCancel').addEventListener('click', cancelRoadMode);
+
+                document.getElementById('regButton').addEventListener('click', () => register(document.getElementById('regEmail').value.trim(), document.getElementById('regPass').value));
+                document.getElementById('loginButton').addEventListener('click', () => login(document.getElementById('regEmail').value.trim(), document.getElementById('regPass').value));
+                document.getElementById('logoutButton').addEventListener('click', logout);
+
+                document.getElementById('gasStationsBtn').addEventListener('click', () => openDataModal('stations'));
+                document.getElementById('roadProblemsBtn').addEventListener('click', () => openDataModal('problems'));
+                document.getElementById('dataModalClose').addEventListener('click', () => document.getElementById('dataModal').classList.remove('open'));
+                document.getElementById('dataModal').addEventListener('click', (e) => { if (e.target.id === 'dataModal') e.currentTarget.classList.remove('open'); });
+                document.getElementById('langRu').addEventListener('click', () => applyLanguage('ru'));
+                document.getElementById('langEn').addEventListener('click', () => applyLanguage('en'));
+
+                document.getElementById('saveDeepseekKey').addEventListener('click', saveDeepseekKey);
+                document.getElementById('savePriceApi').addEventListener('click', savePriceApi);
+                document.getElementById('addStationBtn').addEventListener('click', addStationManually);
+
+                document.getElementById('chatSend').addEventListener('click', () => {
+                    const input = document.getElementById('chatInput');
+                    if (!input.value.trim()) return;
+                    document.getElementById('consoleMessage').innerText = '💬 Message sent to support (demo)';
+                    input.value = '';
+                });
+            });
+        })();
+        </script>
+    </body>
+</html>
