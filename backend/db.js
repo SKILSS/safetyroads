@@ -1,93 +1,45 @@
-const { Pool } = require("pg");
+const express = require("express");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const { pool } = require("../db");
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
-  max: 10,
-  idleTimeoutMillis: 30000,
-});
+const router = express.Router();
 
-async function initSchema() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'user', -- 'user' or 'admin'
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-
-    CREATE TABLE IF NOT EXISTS problems (
-      id SERIAL PRIMARY KEY,
-      region TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT 'other',
-      severity TEXT NOT NULL DEFAULT 'med',
-      status TEXT NOT NULL DEFAULT 'new',
-      title_ru TEXT NOT NULL,
-      title_en TEXT NOT NULL,
-      image_data TEXT, -- base64 data URL; move to real object storage if volume grows
-      ai_verdict TEXT,
-      lat DOUBLE PRECISION,
-      lng DOUBLE PRECISION,
-      is_road BOOLEAN NOT NULL DEFAULT false, -- true = "whole road is bad", drawn as a red line
-      route JSONB, -- array of [lat,lng] pairs when is_road = true
-      created_by INTEGER REFERENCES users(id),
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );
-    CREATE INDEX IF NOT EXISTS idx_problems_region ON problems(region);
-    CREATE INDEX IF NOT EXISTS idx_problems_created ON problems(created_at DESC);
-
-    -- Safe on a database that already had the old (pre-map) "problems" table:
-    -- adds the new columns in place instead of requiring a fresh DB.
-    ALTER TABLE problems ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION;
-    ALTER TABLE problems ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION;
-    ALTER TABLE problems ADD COLUMN IF NOT EXISTS is_road BOOLEAN NOT NULL DEFAULT false;
-    ALTER TABLE problems ADD COLUMN IF NOT EXISTS route JSONB;
-
-    -- Gas stations. Locations can be bulk-imported (see scripts/sync-stations.js,
-    -- which pulls them from OpenStreetMap/Overpass — free, no key needed).
-    -- Prices are NOT available from any free/live public feed for Russia, so
-    -- they start NULL and are filled in by an admin (Settings > АЗС) or by
-    -- wiring your own price provider into that same script.
-    CREATE TABLE IF NOT EXISTS gas_stations (
-      id SERIAL PRIMARY KEY,
-      name TEXT NOT NULL,
-      brand TEXT,
-      lat DOUBLE PRECISION NOT NULL,
-      lng DOUBLE PRECISION NOT NULL,
-      price_92 NUMERIC,
-      price_95 NUMERIC,
-      price_98 NUMERIC,
-      price_dt NUMERIC,
-      source TEXT NOT NULL DEFAULT 'manual', -- 'manual' | 'osm'
-      osm_id TEXT UNIQUE, -- prevents duplicate rows when the sync script re-runs
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      source_updated_at TIMESTAMPTZ,
-      source_url TEXT
-    );
-    CREATE INDEX IF NOT EXISTS idx_stations_coords ON gas_stations(lat, lng);
-    ALTER TABLE gas_stations ADD COLUMN IF NOT EXISTS source_updated_at TIMESTAMPTZ;
-    ALTER TABLE gas_stations ADD COLUMN IF NOT EXISTS source_url TEXT;
-
-    ALTER TABLE problems ADD COLUMN IF NOT EXISTS source TEXT;
-    ALTER TABLE problems ADD COLUMN IF NOT EXISTS source_url TEXT;
-    ALTER TABLE problems ADD COLUMN IF NOT EXISTS source_updated_at TIMESTAMPTZ;
-    CREATE INDEX IF NOT EXISTS idx_problems_source ON problems(source);
-    CREATE UNIQUE INDEX IF NOT EXISTS uq_problems_source_url ON problems(source_url) WHERE source_url IS NOT NULL;
-
-    -- Single-row table: only the admin can ever write to it (see routes/admin.js).
-    -- The DeepSeek key lives here, server-side, never sent to the browser.
-    CREATE TABLE IF NOT EXISTS app_settings (
-      id INTEGER PRIMARY KEY DEFAULT 1,
-      deepseek_api_key TEXT,
-      price_api_key TEXT, -- Bearer token for a fuel-price provider (e.g. Benzup) — see scripts/sync-prices.js
-      price_api_url TEXT, -- that provider's "list stations with prices" endpoint
-      CONSTRAINT single_row CHECK (id = 1)
-    );
-    INSERT INTO app_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
-    ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS price_api_key TEXT;
-    ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS price_api_url TEXT;
-  `);
+function issueToken(user) {
+  return jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
 }
 
-module.exports = { pool, initSchema };
+// Anyone can register — always as a plain user. There is no "role" field
+// accepted from the request body, so nobody can register themselves as
+// admin through this endpoint.
+router.post("/register", async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password || password.length < 8) {
+    return res.status(400).json({ error: "Email and a password of at least 8 characters are required." });
+  }
+  const existing = await pool.query("SELECT id FROM users WHERE email = $1", [email.toLowerCase()]);
+  if (existing.rows[0]) return res.status(409).json({ error: "An account with this email already exists." });
+
+  const hash = bcrypt.hashSync(password, 12);
+  const result = await pool.query(
+    "INSERT INTO users (email, password_hash, role) VALUES ($1, $2, 'user') RETURNING id, email, role",
+    [email.toLowerCase(), hash]
+  );
+  const user = result.rows[0];
+  res.status(201).json({ token: issueToken(user), user: { email: user.email, role: user.role } });
+});
+
+router.post("/login", async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) return res.status(400).json({ error: "Email and password required." });
+
+  const result = await pool.query("SELECT * FROM users WHERE email = $1", [email.toLowerCase()]);
+  const user = result.rows[0];
+  if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+    return res.status(401).json({ error: "Invalid email or password." });
+  }
+  res.json({ token: issueToken(user), user: { email: user.email, role: user.role } });
+});
+
+module.exports = router;
+
