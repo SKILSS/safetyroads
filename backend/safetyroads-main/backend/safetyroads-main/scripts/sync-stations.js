@@ -51,8 +51,9 @@ async function fetchStations(bbox) {
       const tags = el.tags || {};
       return {
         osmId: `${el.type}/${el.id}`,
-        name: tags.name || tags.brand || "АЗС",
+        name: tags.name || tags.brand || tags.operator || "АЗС",
         brand: tags.brand || tags.operator || null,
+        regionName: tags["addr:region"] || tags["addr:state"] || tags["is_in:region"] || null,
         lat,
         lng,
       };
@@ -64,11 +65,13 @@ async function upsert(station) {
   // ON CONFLICT on osm_id: re-running this script updates location/name but
   // NEVER touches the price columns, so admin-entered prices survive re-syncs.
   await pool.query(
-    `INSERT INTO gas_stations (name, brand, lat, lng, source, osm_id, updated_at)
-     VALUES ($1,$2,$3,$4,'osm',$5, now())
+    `INSERT INTO gas_stations (name, brand, region_name, lat, lng, source, osm_id, updated_at)
+     VALUES ($1,$2,$3,$4,$5,'osm',$6, now())
      ON CONFLICT (osm_id) DO UPDATE SET
-       name = EXCLUDED.name, brand = EXCLUDED.brand, lat = EXCLUDED.lat, lng = EXCLUDED.lng`,
-    [station.name, station.brand, station.lat, station.lng, station.osmId]
+       name = EXCLUDED.name, brand = EXCLUDED.brand,
+       region_name = COALESCE(EXCLUDED.region_name, gas_stations.region_name),
+       lat = EXCLUDED.lat, lng = EXCLUDED.lng`,
+    [station.name, station.brand, station.regionName, station.lat, station.lng, station.osmId]
   );
 }
 

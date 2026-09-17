@@ -11,6 +11,7 @@ const authRoutes = require("./routes/auth");
 const problemsRoutes = require("./routes/problems");
 const adminRoutes = require("./routes/admin");
 const stationsRoutes = require("./routes/stations");
+const geocodeRoutes = require("./routes/geocode");
 const { syncPrices } = require("./scripts/sync-prices");
 
 const app = express();
@@ -32,6 +33,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/problems", problemsRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/stations", stationsRoutes);
+app.use("/api/geocode", geocodeRoutes);
 
 // Serve the frontend from the same server, so one deploy = the whole site.
 app.use(express.static(path.join(__dirname, "frontend")));
@@ -46,7 +48,7 @@ app.use((err, req, res, next) => {
 });
 
 const port = process.env.PORT || 8080;
-const PRICE_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const PRICE_SYNC_INTERVAL_MS = 60 * 60 * 1000; // 1 hour; sources publish several updates per day
 
 function schedulePriceSync() {
   const run = () => {
