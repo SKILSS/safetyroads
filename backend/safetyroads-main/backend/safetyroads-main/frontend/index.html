@@ -457,6 +457,22 @@
             background: #d9e2ed;
             border-bottom-color: #b8c9dd;
         }
+        body.light .tabs {
+            background: #ffffff;
+            border-bottom-color: #cfd8e3;
+        }
+        body.light .tab {
+            color: #41566d;
+        }
+        body.light .tab:hover {
+            background: #f1f5f9;
+            color: #1f3a55;
+        }
+        body.light .tab.active {
+            background: #e8eef5;
+            color: #1f3a55;
+            border-bottom-color: #c9631b;
+        }
         body.light .logo small {
             -webkit-text-fill-color: #3a5a7a;
             color: #3a5a7a;
@@ -491,6 +507,24 @@
             color: #1a2a3a;
             border-color: #b0c4dd;
         }
+        body.light .add-form select option {
+            background: #ffffff;
+            color: #1a2a3a;
+        }
+        body.light .add-form #roadModeBtn {
+            background: #eef2f6 !important;
+            color: #314255 !important;
+            border: 1px solid #d7dfe8 !important;
+        }
+        body.light .add-form #openPickerBtn {
+            background: #3a6ea5 !important;
+            color: #fff !important;
+        }
+        body.light .add-form .file-input {
+            background: #f7f9fb;
+            color: #314255;
+            border-color: #cbd5df;
+        }
         body.light .settings-card {
             background: #d9e2ed;
         }
@@ -512,6 +546,24 @@
             background: #f4f8ff;
             color: #1a2a3a;
             border-color: #b0c4dd;
+        }
+        body.light #adminCard input {
+            background: #f7f9fb !important;
+            color: #18212b !important;
+            border-color: #d4dce5 !important;
+        }
+        body.light #adminCard .settings-row {
+            border-color: #cfd8e3 !important;
+        }
+        body.light #adminCard button {
+            color: #fff !important;
+        }
+        body.light .chat-support {
+            background: #ffffff;
+            border: 1px solid #cfd8e3;
+        }
+        body.light .chat-support input {
+            color: #1a2a3a;
         }
         body.light .chat-support {
             background: #d0ddee;
@@ -747,8 +799,8 @@
         <!-- ВКЛАДКИ -->
         <div class="tabs">
             <button class="tab active" data-tab="map">🗺 Map</button>
-            <button class="tab" data-tab="problems">⚠️ Проблемы</button>
-            <button class="tab" data-tab="settings">⚙️ Настройки</button>
+            <button class="tab" data-tab="problems">⚠️ Problems</button>
+            <button class="tab" data-tab="settings">⚙️ Settings</button>
         </div>
 
         <!-- КОНТЕНТ -->
@@ -908,7 +960,7 @@
                         <input type="text" id="priceApiUrlInput" placeholder="URL провайдера, напр. https://api.omt-consult.ru/v2/stations" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
                         <input type="password" id="priceApiKeyInput" placeholder="Bearer-токен провайдера (оставьте пустым, чтобы не менять)" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
                         <div id="priceApiStatus" style="font-size:0.75rem;color:#7e92b0;margin-top:6px;"></div>
-                        <div style="font-size:0.7rem;color:#7e92b0;margin-top:4px;">Сервер автоматически использует открытые агрегированные данные «Ехай» как ориентир и, если настроен, точные данные станционного провайдера (например, Benzup). Точные цены помечаются отдельно от медианных. Синхронизация выполняется автоматически каждый час.</div>
+                        <div id="priceApiDescription" style="font-size:0.7rem;color:#7e92b0;margin-top:4px;">Сервер автоматически использует открытые агрегированные данные «Ехай» как ориентир и, если настроен, точные данные станционного провайдера (например, Benzup). Точные цены помечаются отдельно от медианных. Синхронизация выполняется автоматически каждый час.</div>
                         <button type="button" id="savePriceApi" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#f5a623;color:#111;font-weight:700;cursor:pointer;">Сохранить провайдера цен</button>
                     </div>
                     <div class="settings-row" style="display:block;border-top:1px solid #29394e;padding-top:12px;">
@@ -1009,6 +1061,14 @@
                     support:'💬 Поддержка', register:'🔐 Вход / Регистрация',
                     registerBtn:'Зарегистрироваться', login:'Войти', logout:'Выйти',
                     guest:'гость', password:'Пароль (мин. 8 символов)', email:'Email',
+                    problemTitlePlaceholder:'Заголовок (например, Яма на дороге)', problemRegionPlaceholder:'Регион (например, Москва)',
+                    categoryRoad:'🚧 Дороги', categoryLight:'💡 Освещение', categoryUtilities:'🏠 ЖКХ', categoryTrash:'🗑 Мусор', categoryOther:'📌 Другое',
+                    location:'📍 Место', aiHelp:'🤖 ИИ проверит фото (если загружено) •', coordinatesHint:'для указания координат',
+                    chatPlaceholder:'Напишите...',
+                    deepseekPlaceholder:'Оставьте пустым, чтобы не менять', priceApiUrlPlaceholder:'URL провайдера, напр. https://api.omt-consult.ru/v2/stations', priceApiKeyPlaceholder:'Bearer-токен провайдера (оставьте пустым, чтобы не менять)',
+                    stationNamePlaceholder:'Название АЗС', stationHint:'Выберите место на карте, затем нажмите «Добавить АЗС в выбранной точке»',
+                    serverPriceNote:'Сервер автоматически использует открытые агрегированные данные «Ехай» как ориентир и, если настроен, точные данные станционного провайдера (например, Benzup). Точные цены помечаются отдельно от медианных. Синхронизация выполняется автоматически каждый час.',
+                    addStation:'➕ Добавить АЗС в выбранной точке',
                     problem:'➕ Сообщить о проблеме', choose:'📍 Выбрать место на карте',
                     markRoad:'🚧 Отметить всю дорогу (несколько точек)',
                     submit:'Отправить на проверку', noProblems:'Проблем пока нет',
@@ -1051,6 +1111,14 @@
                     support:'💬 Support', register:'🔐 Sign in / Register',
                     registerBtn:'Register', login:'Sign in', logout:'Sign out',
                     guest:'guest', password:'Password (min. 8 characters)', email:'Email',
+                    problemTitlePlaceholder:'Title (for example: Pothole)', problemRegionPlaceholder:'Region (for example: Moscow)',
+                    categoryRoad:'🚧 Roads', categoryLight:'💡 Lighting', categoryUtilities:'🏠 Utilities', categoryTrash:'🗑 Waste', categoryOther:'📌 Other',
+                    location:'📍 Location', aiHelp:'🤖 AI will review the photo (if uploaded) •', coordinatesHint:'to set coordinates',
+                    chatPlaceholder:'Type a message...',
+                    deepseekPlaceholder:'Leave empty to keep the current key', priceApiUrlPlaceholder:'Provider URL, e.g. https://api.omt-consult.ru/v2/stations', priceApiKeyPlaceholder:'Provider Bearer token (leave empty to keep current)',
+                    stationNamePlaceholder:'Gas station name', stationHint:'Choose a location on the map, then click “Add a gas station at the selected point”',
+                    serverPriceNote:'The server automatically uses open aggregated “Ехай” data as an estimate and, when configured, exact data from the station-price provider (for example, Benzup). Exact prices are marked separately from median estimates. Synchronization runs automatically every hour.',
+                    addStation:'➕ Add a gas station at the selected point',
                     problem:'➕ Report a problem', choose:'📍 Choose location on map',
                     markRoad:'🚧 Mark the whole road (multiple points)',
                     submit:'Submit for review', noProblems:'No problems yet',
@@ -1109,24 +1177,48 @@
                 // Static labels in the three pages.
                 const first = (sel) => document.querySelector(sel);
                 const hProblem = first('#page-problems .add-form h4'); if (hProblem) hProblem.textContent = s.problem;
-                const titleInput = document.getElementById('problemTitle'); if (titleInput) titleInput.placeholder = lang === 'ru' ? 'Заголовок (например, Яма на дороге)' : 'Title (for example: Pothole)';
-                const regionInput = document.getElementById('problemRegion'); if (regionInput) regionInput.placeholder = lang === 'ru' ? 'Регион (например, Москва)' : 'Region (for example: Moscow)';
+                const titleInput = document.getElementById('problemTitle'); if (titleInput) titleInput.placeholder = s.problemTitlePlaceholder;
+                const regionInput = document.getElementById('problemRegion'); if (regionInput) regionInput.placeholder = s.problemRegionPlaceholder;
+                const categoryOptions = {
+                    'Дороги': s.categoryRoad, 'Освещение': s.categoryLight, 'ЖКХ': s.categoryUtilities, 'Мусор': s.categoryTrash, other: s.categoryOther
+                };
+                document.querySelectorAll('#problemCategory option').forEach((option) => {
+                    if (categoryOptions[option.value]) option.textContent = categoryOptions[option.value];
+                });
+                setText('selectedCoordsLabel', s.location);
+                setText('problemHelpText', s.aiHelp + ' ');
+                const helpPick = document.getElementById('problemHelpPick'); if (helpPick) { helpPick.textContent = s.choose; }
+                const helpText = document.getElementById('problemHelpText'); if (helpText) {
+                    helpText.innerHTML = `${s.aiHelp} <span id="problemHelpPick" style="color:#f5a623;">${s.choose}</span> ${s.coordinatesHint}`;
+                }
                 const openPicker = document.getElementById('openPickerBtn'); if (openPicker) openPicker.textContent = s.choose;
                 const roadBtn = document.getElementById('roadModeBtn'); if (roadBtn) roadBtn.textContent = s.markRoad;
                 const submit = document.getElementById('submitProblem'); if (submit) submit.textContent = s.submit;
+                const themeLabel = document.getElementById('settingsThemeLabel'); if (themeLabel) themeLabel.textContent = s.theme;
+                const chatInput = document.getElementById('chatInput'); if (chatInput) chatInput.placeholder = s.chatPlaceholder;
+                const userBadge = document.getElementById('userBadge'); if (userBadge && !user) userBadge.textContent = '👤 ' + s.guest;
+                const userStatus = document.getElementById('userStatusBox'); if (userStatus && !user) userStatus.textContent = '👤 ' + (lang === 'en' ? 'You: ' : 'Вы: ') + s.guest;
                 const registerH = first('#page-settings .register-box h4'); if (registerH) registerH.textContent = s.register;
                 const regEmail = document.getElementById('regEmail'); if (regEmail) regEmail.placeholder = s.email;
                 const regPass = document.getElementById('regPass'); if (regPass) regPass.placeholder = s.password;
                 const regBtn = document.getElementById('regButton'); if (regBtn) regBtn.textContent = s.registerBtn;
                 const loginBtn = document.getElementById('loginButton'); if (loginBtn) loginBtn.textContent = s.login;
                 const logoutBtn = document.getElementById('logoutButton'); if (logoutBtn) logoutBtn.textContent = s.logout;
-                const support = first('#page-settings .settings-card .settings-row span'); if (support && support.textContent.includes('Поддержка')) support.textContent = s.support;
+                const support = document.getElementById('supportLabel'); if (support) support.textContent = s.support;
                 const adminH = first('#adminCard h4'); if (adminH) adminH.textContent = s.settingsAdmin;
                 const deep = first('#adminCard .settings-row span'); if (deep) deep.textContent = s.deepseek;
                 const saveKey = document.getElementById('saveDeepseekKey'); if (saveKey) saveKey.textContent = s.saveKey;
                 const providerRows = document.querySelectorAll('#adminCard .settings-row'); if (providerRows[1]) { const sp=providerRows[1].querySelector('span'); if(sp) sp.textContent=s.fuelProvider; }
                 const saveProvider = document.getElementById('savePriceApi'); if(saveProvider) saveProvider.textContent=s.saveProvider;
                 if (providerRows[2]) { const sp=providerRows[2].querySelector('span'); if(sp) sp.textContent=s.addFuel; }
+                const deepInput = document.getElementById('deepseekKeyInput'); if (deepInput) deepInput.placeholder = s.deepseekPlaceholder;
+                const priceUrl = document.getElementById('priceApiUrlInput'); if (priceUrl) priceUrl.placeholder = s.priceApiUrlPlaceholder;
+                const priceKey = document.getElementById('priceApiKeyInput'); if (priceKey) priceKey.placeholder = s.priceApiKeyPlaceholder;
+                const stationName = document.getElementById('stationName'); if (stationName) stationName.placeholder = s.stationNamePlaceholder;
+                const stationHint = document.getElementById('stationManualHint'); if (stationHint) stationHint.textContent = s.stationHint;
+                const openPickerAdmin = document.getElementById('openPickerBtnAdmin'); if (openPickerAdmin) openPickerAdmin.textContent = s.choose;
+                const addStation = document.getElementById('addStationBtn'); if (addStation) addStation.textContent = s.addStation;
+                const priceNote = document.getElementById('priceApiDescription'); if (priceNote) priceNote.textContent = s.serverPriceNote;
                 setText('consoleMessage', s.systemReady);
                 const footer = document.querySelector('.footer'); if (footer) footer.textContent = s.footer;
                 setText('pickerTitle', s.pickTitle); setText('pickerCancel', s.pickCancel); setText('pickerDone', s.pickDone);
@@ -1483,12 +1575,12 @@
                 const category = document.getElementById('problemCategory').value;
                 const file = document.getElementById('problemFile').files[0];
 
-                if (!token) { alert('Сначала войдите в аккаунт (вкладка «Настройки»).'); return; }
-                if (!title) { alert('Укажите заголовок проблемы.'); return; }
-                if (!roadMode && roadPoints.length === 0 && !selectedPoint) { alert('Нажмите «Выбрать место на карте» или «Обозначить всю дорогу».'); return; }
+                if (!token) { alert(lang === 'en' ? 'Please sign in first (Settings tab).' : 'Сначала войдите в аккаунт (вкладка «Настройки»).'); return; }
+                if (!title) { alert(lang === 'en' ? 'Enter a problem title.' : 'Укажите заголовок проблемы.'); return; }
+                if (!roadMode && roadPoints.length === 0 && !selectedPoint) { alert(lang === 'en' ? 'Choose a location on the map or mark the whole road.' : 'Нажмите «Выбрать место на карте» или «Обозначить всю дорогу».'); return; }
 
                 submitBtn.disabled = true;
-                submitBtn.textContent = '⏳ Отправка...';
+                submitBtn.textContent = lang === 'en' ? '⏳ Sending...' : '⏳ Отправка...';
                 try {
                     let imageDataUrl = null;
                     if (file) {
@@ -1529,7 +1621,7 @@
                     alert('Ошибка при добавлении: ' + err.message);
                 } finally {
                     submitBtn.disabled = false;
-                    submitBtn.textContent = 'Отправить на проверку';
+                    submitBtn.textContent = tr('submit');
                 }
             }
 
@@ -2086,7 +2178,7 @@
                 document.getElementById('chatSend').addEventListener('click', () => {
                     const input = document.getElementById('chatInput');
                     if (!input.value.trim()) return;
-                    document.getElementById('consoleMessage').innerText = '💬 Сообщение отправлено в поддержку (демо)';
+                    document.getElementById('consoleMessage').innerText = lang === 'en' ? '💬 Message sent to support (demo)' : '💬 Сообщение отправлено в поддержку (демо)';
                     input.value = '';
                 });
             });
