@@ -1,0 +1,2096 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SafetyRoad</title>
+    <link rel="preconnect" href="https://tile.openstreetmap.org" />
+    <link rel="preconnect" href="https://unpkg.com" crossorigin />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            /* Avoid a transition on every DOM node: it causes unnecessary repaints on map-heavy screens. */
+            transition: none;
+        }
+        body {
+            background: #0b0e14;
+            color: #e8edf5;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .app {
+            width: 100%;
+            max-width: 480px;
+            background: #131a24;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+        }
+        .header {
+            padding: 16px 20px 10px;
+            background: #1c2532;
+            border-bottom: 1px solid #2a3548;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-weight: 700;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #f6b83d, #f5a623);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .logo small {
+            font-size: 0.65rem;
+            -webkit-text-fill-color: #8899bb;
+            color: #8899bb;
+            margin-left: 6px;
+        }
+        .user-badge {
+            background: #2e3b4e;
+            padding: 4px 14px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            color: #b0c7e0;
+            cursor: pointer;
+        }
+        .tabs {
+            display: flex;
+            background: #0f1722;
+            border-bottom: 1px solid #2a3548;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .tab {
+            flex: 1;
+            padding: 12px 0;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #7a8aa0;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .tab.active {
+            color: #f5c542;
+            border-bottom-color: #f5c542;
+            background: #1a2330;
+        }
+        .content {
+            flex: 1;
+            padding: 16px 16px 80px;
+            overflow-y: auto;
+        }
+        .page {
+            display: none;
+            /* Keep tab changes cheap; the map is the expensive element. */
+        }
+        .page.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0.3;
+                transform: translateY(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        #map {
+            height: 340px;
+            border-radius: 16px;
+            border: 1px solid #2f3d52;
+            margin-bottom: 10px;
+            background: #1a2535;
+            cursor: crosshair;
+        }
+        .map-footer {
+            font-size: 0.8rem;
+            color: #7e92b0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            margin-bottom: 12px;
+        }
+        .map-hint {
+            background: #1a2535;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            color: #f5a623;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+        .gas-prices {
+            background: #1a2535;
+            padding: 8px 14px;
+            border-radius: 40px;
+            display: inline-block;
+            font-size: 0.8rem;
+            color: #b0c7e0;
+        }
+        .gas-prices span {
+            margin-right: 12px;
+        }
+        .problem-item {
+            background: #1b2635;
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            border-left: 5px solid #f5a623;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        .problem-item .title {
+            font-weight: 600;
+            font-size: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .problem-item .meta {
+            font-size: 0.75rem;
+            color: #9aafcc;
+            margin-top: 6px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .problem-item .coords {
+            font-size: 0.7rem;
+            color: #7e92b0;
+            margin-top: 4px;
+            font-family: monospace;
+        }
+        .badge {
+            padding: 2px 14px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .badge.ai {
+            background: #2d5a3d;
+            color: #b0e0b0;
+        }
+        .badge.pending {
+            background: #6a5a2a;
+            color: #f5d98a;
+        }
+        .badge.new {
+            background: #4a5a7a;
+            color: #b0c7e0;
+        }
+        .add-form {
+            background: #1f2d40;
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 20px;
+            border: 1px dashed #3e5570;
+        }
+        .add-form input,
+        .add-form textarea,
+        .add-form select,
+        .add-form button {
+            width: 100%;
+            margin-top: 8px;
+            padding: 10px 14px;
+            border-radius: 30px;
+            border: 1px solid #31445c;
+            background: #101b28;
+            color: #dce6f0;
+            font-size: 0.9rem;
+        }
+        .add-form select option {
+            background: #1a2535;
+        }
+        .add-form .coord-row {
+            display: flex;
+            gap: 8px;
+        }
+        .add-form .coord-row input {
+            flex: 1;
+        }
+        .add-form button {
+            background: #f5a623;
+            color: #111;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+        .add-form button:hover {
+            background: #e0961a;
+        }
+        .add-form button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .file-input {
+            padding: 6px 10px;
+            background: #101b28;
+            border: 1px solid #3e5570;
+            border-radius: 30px;
+            color: #b0c7e0;
+        }
+        .settings-card {
+            background: #1a2535;
+            border-radius: 16px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+        }
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #29394e;
+        }
+        .settings-row:last-child {
+            border-bottom: none;
+        }
+        .theme-group {
+            display: flex;
+            gap: 12px;
+        }
+        .theme-btn {
+            background: #26344a;
+            border: none;
+            padding: 6px 18px;
+            border-radius: 40px;
+            color: #b0c7e0;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .theme-btn.active {
+            background: #f5a623;
+            color: #0b0e14;
+        }
+        .chat-support {
+            background: #1f2d40;
+            padding: 6px 14px;
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            max-width: 200px;
+        }
+        .chat-support input {
+            background: transparent;
+            border: none;
+            color: #dce6f0;
+            width: 100%;
+            outline: none;
+        }
+        .chat-support input::placeholder {
+            color: #5a7290;
+        }
+        .chat-support span {
+            cursor: pointer;
+            color: #f5a623;
+            font-weight: bold;
+        }
+        .register-box {
+            background: #1a2535;
+            border-radius: 20px;
+            padding: 20px;
+            margin-top: 10px;
+        }
+        .register-box input {
+            width: 100%;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            border-radius: 40px;
+            border: 1px solid #31445c;
+            background: #101b28;
+            color: #dce6f0;
+        }
+        .register-box .btn-reg {
+            background: #3a6ea5;
+            border: none;
+            padding: 12px;
+            border-radius: 40px;
+            font-weight: 700;
+            color: #fff;
+            width: 100%;
+            cursor: pointer;
+        }
+        .register-box .btn-reg:hover {
+            background: #2f5a8a;
+        }
+        .register-box .btn-logout {
+            background: #6a3a3a;
+            border: none;
+            padding: 12px;
+            border-radius: 40px;
+            font-weight: 700;
+            color: #fff;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .register-box .btn-logout:hover {
+            background: #5a2a2a;
+        }
+        .reg-msg {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #f5a623;
+        }
+        .reg-msg.success {
+            color: #8bc34a;
+        }
+        .reg-msg.error {
+            color: #f44336;
+        }
+        .user-status {
+            margin-top: 12px;
+            color: #b0c7e0;
+            font-size: 0.9rem;
+        }
+        .console {
+            background: #0c141f;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-family: monospace;
+            font-size: 0.7rem;
+            color: #b0c0d0;
+            margin-top: 12px;
+            border-left: 3px solid #f5a623;
+        }
+        .footer {
+            text-align: center;
+            font-size: 0.6rem;
+            color: #4a607a;
+            padding: 8px 0;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #7e92b0;
+        }
+        .selected-marker-info {
+            background: #1a2535;
+            border-radius: 12px;
+            padding: 8px 14px;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            color: #f5a623;
+            border: 1px solid #f5a623;
+        }
+        .picker-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .picker-overlay.open { display: flex; }
+        .picker-sheet {
+            background: #101b28;
+            width: 100%;
+            max-width: 480px;
+            border-radius: 18px 18px 0 0;
+            padding: 14px;
+            box-shadow: 0 -4px 24px rgba(0,0,0,0.5);
+        }
+        .picker-sheet h4 { margin-bottom: 8px; font-size: 0.95rem; }
+        #miniMap {
+            width: 100%;
+            height: 45vh;
+            max-height: 360px;
+            min-height: 220px;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .picker-hint {
+            font-size: 0.75rem;
+            color: #7e92b0;
+            margin: 8px 0;
+        }
+        .picker-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .picker-actions button {
+            flex: 1;
+            padding: 10px;
+            border-radius: 30px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .station-price-pin {
+            background: #12324f;
+            border: 2px solid #3ea6ff;
+            border-radius: 10px;
+            padding: 2px 6px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: #eaf6ff;
+            white-space: nowrap;
+            box-shadow: 0 1px 5px rgba(0,0,0,.5);
+            transform: translate(-50%, -100%);
+        }
+        /* Светлая тема */
+        body.light .app {
+            background: #eef2f7;
+        }
+        body.light .header {
+            background: #d9e2ed;
+            border-bottom-color: #b8c9dd;
+        }
+        body.light .logo small {
+            -webkit-text-fill-color: #3a5a7a;
+            color: #3a5a7a;
+        }
+        body.light .tab {
+            color: #2f4a6a;
+        }
+        body.light .tab.active {
+            background: #d4e0ed;
+            color: #1f3a55;
+            border-bottom-color: #1f3a55;
+        }
+        body.light .content {
+            background: #eef2f7;
+        }
+        body.light .problem-item {
+            background: #ffffff;
+            border-left-color: #d48c1a;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+        body.light .problem-item .meta {
+            color: #3a5a7a;
+        }
+        body.light .add-form {
+            background: #d9e2ed;
+            border-color: #aabbd0;
+        }
+        body.light .add-form input,
+        body.light .add-form textarea,
+        body.light .add-form select {
+            background: #f4f8ff;
+            color: #1a2a3a;
+            border-color: #b0c4dd;
+        }
+        body.light .settings-card {
+            background: #d9e2ed;
+        }
+        body.light .settings-row {
+            border-color: #b8c9dd;
+        }
+        body.light .theme-btn {
+            background: #c0d0e0;
+            color: #1a2a3a;
+        }
+        body.light .theme-btn.active {
+            background: #d48c1a;
+            color: #fff;
+        }
+        body.light .register-box {
+            background: #d9e2ed;
+        }
+        body.light .register-box input {
+            background: #f4f8ff;
+            color: #1a2a3a;
+            border-color: #b0c4dd;
+        }
+        body.light .chat-support {
+            background: #d0ddee;
+        }
+        body.light .user-status {
+            color: #1f3a55;
+        }
+        body.light .map-footer {
+            color: #3a5a7a;
+        }
+        body.light #map {
+            border-color: #b8c9dd;
+        }
+        body.light .console {
+            background: #d9e2ed;
+            color: #1f3a55;
+        }
+        body.light .badge {
+            background: #c0d0e0;
+            color: #1f3a55;
+        }
+        body.light .badge.ai {
+            background: #b0d0b0;
+            color: #1a3a1a;
+        }
+        body.light .badge.pending {
+            background: #e8d090;
+            color: #3a3a1a;
+        }
+        body.light .gas-prices {
+            background: #d9e2ed;
+            color: #1f3a55;
+        }
+        body.light .map-hint {
+            background: #d9e2ed;
+            color: #d48c1a;
+        }
+        body.light .selected-marker-info {
+            background: #d9e2ed;
+            border-color: #d48c1a;
+            color: #1f3a55;
+        }
+
+        /* ===== NAVIGATOR ===== */
+        .navigator-card {
+            background: #1a2535;
+            border: 1px solid #2f3d52;
+            border-radius: 16px;
+            padding: 14px;
+            margin: 12px 0;
+            box-shadow: 0 4px 16px rgba(0,0,0,.18);
+        }
+        .navigator-head {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:10px;
+            margin-bottom:12px;
+        }
+        .navigator-title { font-size:1.05rem; font-weight:800; }
+        .navigator-subtitle { font-size:.72rem; color:#7e92b0; margin-top:3px; }
+        .nav-icon-btn, .nav-small-btn, .nav-go-btn {
+            border:0;
+            border-radius:12px;
+            cursor:pointer;
+            font-weight:700;
+        }
+        .nav-icon-btn {
+            width:42px; height:42px; background:#26344a; color:#f5c542; font-size:1.05rem;
+        }
+        .nav-input-row {
+            display:flex;
+            align-items:center;
+            gap:8px;
+            min-height:42px;
+        }
+        .nav-input-row input {
+            min-width:0;
+            flex:1;
+            padding:11px 12px;
+            border-radius:12px;
+            border:1px solid #31445c;
+            background:#101b28;
+            color:#e8edf5;
+            outline:none;
+        }
+        .nav-input-row input:focus { border-color:#f5a623; }
+        .nav-dot { width:11px; height:11px; border-radius:50%; flex:0 0 11px; }
+        .nav-dot-start { background:#2e9b62; }
+        .nav-dot-end { background:#e53935; }
+        .nav-line { width:1px; height:13px; background:#52637a; margin:0 0 0 5px; }
+        .nav-small-btn {
+            background:#26344a; color:#bcd0e8; padding:9px 10px; font-size:.72rem; white-space:nowrap;
+        }
+        .nav-go-btn {
+            background:#f5a623; color:#111; padding:10px 13px; font-size:.82rem; white-space:nowrap;
+        }
+        .nav-status {
+            margin-top:10px;
+            font-size:.75rem;
+            color:#9aafcc;
+            min-height:18px;
+        }
+        .nav-status.error { color:#ff8d8d; }
+        .nav-status.ok { color:#8bd49f; }
+        .nav-summary {
+            margin-top:10px;
+            background:#101b28;
+            border:1px solid #31445c;
+            border-radius:13px;
+            padding:11px 12px;
+        }
+        .nav-summary-main { display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
+        .nav-summary-main strong { font-size:1.25rem; }
+        .nav-summary-main span { font-size:.72rem; color:#9aafcc; }
+        .nav-summary-meta { display:flex; gap:14px; flex-wrap:wrap; margin-top:5px; font-size:.72rem; color:#b0c7e0; }
+        .nav-modes { display:flex; gap:7px; margin-top:9px; }
+        .nav-mode {
+            flex:1;
+            border:1px solid #31445c;
+            background:#26344a;
+            color:#bcd0e8;
+            border-radius:11px;
+            padding:9px 5px;
+            cursor:pointer;
+            font-size:.72rem;
+            font-weight:700;
+        }
+        .nav-mode.active { background:#f5a623; color:#111; border-color:#f5a623; }
+        .nav-route-info {
+            margin-top:10px;
+            background:#101b28;
+            border-radius:13px;
+            padding:10px 12px;
+        }
+        .nav-route-info-title { font-size:.78rem; font-weight:800; margin-bottom:7px; }
+        .nav-steps { margin:0; padding-left:23px; max-height:250px; overflow:auto; }
+        .nav-steps li { padding:6px 0 6px 2px; font-size:.74rem; color:#d5dfeb; border-bottom:1px solid #26344a; }
+        .nav-steps li:last-child { border-bottom:0; }
+        .nav-step-street { font-weight:700; }
+        .nav-step-meta { display:block; color:#7e92b0; margin-top:2px; }
+        .nav-legend { display:flex; gap:14px; flex-wrap:wrap; margin-top:9px; font-size:.7rem; color:#9aafcc; }
+        .nav-legend i { display:inline-block; width:22px; height:4px; border-radius:3px; vertical-align:middle; margin-right:4px; }
+        .legend-green { background:#25c26e; }
+        .legend-red { background:#e53935; }
+        .nav-routing-line { pointer-events:none; }
+        .nav-routing-line.bad { filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+        }
+
+        @media (max-width: 480px) {
+            .app {
+                max-width: 100%;
+            }
+        }
+    
+        /* ===== LIGHT THEME COMPLETENESS =====
+           The original navigator used fixed dark colors, so some controls stayed
+           dark after switching to Light. These overrides make every navigator
+           element follow the selected theme. */
+        body.light .navigator-card { background:#fff; border-color:#dfe4ea; color:#1b2430; }
+        body.light .navigator-subtitle,
+        body.light .nav-status,
+        body.light .nav-summary-main span,
+        body.light .nav-summary-meta,
+        body.light .nav-step-meta,
+        body.light .nav-legend { color:#607080; }
+        body.light .nav-input-row input { background:#f7f9fb; color:#18212b; border-color:#d4dce5; }
+        body.light .nav-input-row input:focus { border-color:#c9631b; }
+        body.light .nav-small-btn,
+        body.light .nav-icon-btn { background:#eef2f6; color:#314255; border:1px solid #d7dfe8; }
+        body.light .nav-go-btn { background:#c9631b; color:#fff; }
+        body.light .nav-summary,
+        body.light .nav-route-info { background:#f7f9fb; border-color:#dbe2ea; }
+        body.light .nav-mode { background:#eef2f6; color:#314255; border-color:#d7dfe8; }
+        body.light .nav-mode.active { background:#c9631b; color:#fff; border-color:#c9631b; }
+        body.light .nav-steps li { color:#253444; border-bottom-color:#e1e6eb; }
+        body.light .nav-line { background:#aab6c3; }
+        body.light .nav-status.error { color:#c43d3d; }
+        body.light .nav-status.ok { color:#237a57; }
+
+        .nav-pick-btn { border:1px dashed #70839a; }
+        .nav-suggestions {
+            position:relative;
+            z-index:1200;
+            margin:4px 0 4px 19px;
+            max-width:calc(100% - 19px);
+        }
+        .nav-suggestion {
+            display:flex; flex-direction:column; gap:2px; width:100%;
+            text-align:left; border:1px solid #31445c; border-top:0;
+            background:#101b28; color:#e8edf5; padding:9px 11px; cursor:pointer;
+        }
+        .nav-suggestion:first-child { border-top:1px solid #31445c; border-radius:10px 10px 0 0; }
+        .nav-suggestion:last-child { border-radius:0 0 10px 10px; }
+        .nav-suggestion strong { font-size:.76rem; }
+        .nav-suggestion span { font-size:.66rem; color:#8da1bb; }
+        body.light .nav-suggestion { background:#fff; color:#1b2430; border-color:#d6dee7; }
+        body.light .nav-suggestion span { color:#718092; }
+        .nav-picking { outline:2px solid #f5a623; outline-offset:2px; }
+        .station-price-pin { min-width:42px; }
+        .station-price-pin .price-kind { display:block; font-size:9px; opacity:.75; margin-top:1px; }
+        .station-actions { display:flex; gap:5px; flex-wrap:wrap; margin-top:7px; }
+        .station-actions button {
+            border:0; border-radius:8px; padding:6px 8px; cursor:pointer;
+            background:#3a6ea5; color:#fff; font-size:11px; font-weight:700;
+        }
+        .station-actions button:last-child { background:#4a7a5a; }
+        .station-price-source { font-size:10px; color:#8193aa; margin-top:4px; }
+        body.light .station-price-source { color:#6c7b8a; }
+        .fuel-price-note { font-size:10px; color:#8193aa; margin-top:4px; }
+        body.light .fuel-price-note { color:#6c7b8a; }
+        @media (max-width: 700px) {
+            .nav-input-row { flex-wrap:wrap; }
+            .nav-input-row input { flex:1 1 100%; order:1; }
+            .nav-dot { order:0; }
+            .nav-pick-btn, .nav-small-btn, .nav-go-btn { flex:1; order:2; }
+            .nav-suggestions { margin-left:0; max-width:100%; }
+        }
+
+</style>
+</head>
+<body>
+    <div class="app">
+        <!-- ШАПКА -->
+        <div class="header">
+            <div class="logo">SafetyRoad</div>
+            <div class="user-badge" id="userBadge" onclick="document.getElementById('page-settings').scrollIntoView()">👤 гость</div>
+        </div>
+
+        <!-- ВКЛАДКИ -->
+        <div class="tabs">
+            <button class="tab active" data-tab="map">🗺 Map</button>
+            <button class="tab" data-tab="problems">⚠️ Проблемы</button>
+            <button class="tab" data-tab="settings">⚙️ Настройки</button>
+        </div>
+
+        <!-- КОНТЕНТ -->
+        <div class="content">
+            <!-- ===== КАРТА ===== -->
+            <div id="page-map" class="page active">
+                <div id="map"></div>
+
+                <!-- ===== НАВИГАТОР URBAN/SAFETY ROAD ===== -->
+                <section id="navigator" class="navigator-card">
+                    <div class="navigator-head">
+                        <div>
+                            <div class="navigator-title" id="navTitle">🧭 Навигатор</div>
+                            <div class="navigator-subtitle" id="navSubtitle">Маршрут с учётом состояния дорог</div>
+                        </div>
+                        <button id="locateMeBtn" class="nav-icon-btn" type="button" title="Моё местоположение" aria-label="Моё местоположение">📍</button>
+                    </div>
+
+                    <div class="nav-input-row">
+                        <div class="nav-dot nav-dot-start" aria-hidden="true"></div>
+                        <input id="navStart" type="text" placeholder="Моё местоположение" autocomplete="off" />
+                        <button id="pickStartBtn" type="button" class="nav-small-btn nav-pick-btn">📍 На карте</button>
+                        <button id="useMyLocationBtn" type="button" class="nav-small-btn">Моя геолокация</button>
+                    </div>
+                    <div id="navStartSuggestions" class="nav-suggestions"></div>
+
+                    <div class="nav-line"></div>
+
+                    <div class="nav-input-row">
+                        <div class="nav-dot nav-dot-end" aria-hidden="true"></div>
+                        <input id="navDestination" type="text" placeholder="Куда ехать? Например: Казань, Кремль" autocomplete="off" />
+                        <button id="pickDestinationBtn" type="button" class="nav-small-btn nav-pick-btn">📍 На карте</button>
+                        <button id="buildRouteBtn" type="button" class="nav-go-btn">Поехали</button>
+                    </div>
+                    <div id="navDestinationSuggestions" class="nav-suggestions"></div>
+
+                    <div id="navStatus" class="nav-status">Введите адрес назначения и нажмите «Поехали».</div>
+
+                    <div id="navSummary" class="nav-summary" style="display:none;">
+                        <div class="nav-summary-main">
+                            <strong id="navEta">—</strong>
+                            <span id="navArrival">Прибытие —</span>
+                        </div>
+                        <div class="nav-summary-meta">
+                            <span id="navDistance">—</span>
+                            <span id="navBadDistance">Плохих участков: —</span>
+                        </div>
+                    </div>
+
+                    <div id="navModes" class="nav-modes" style="display:none;">
+                        <button type="button" class="nav-mode active" data-route-mode="fast">⚡ Быстрый</button>
+                        <button type="button" class="nav-mode" data-route-mode="good">🟢 Хорошие дороги</button>
+                        <button type="button" class="nav-mode" data-route-mode="bad">🔴 Плохие дороги</button>
+                    </div>
+
+                    <div id="navRouteInfo" class="nav-route-info" style="display:none;">
+                        <div class="nav-route-info-title" id="navRouteInfoTitle">Улицы по маршруту</div>
+                        <ol id="navSteps" class="nav-steps"></ol>
+                    </div>
+
+                    <div id="navLegend" class="nav-legend" style="display:none;">
+                        <span><i class="legend-green"></i> <span id="legendGood">хорошая дорога</span></span>
+                        <span><i class="legend-red"></i> <span id="legendBad">плохой участок</span></span>
+                    </div>
+                </section>
+
+                <div class="map-footer">
+                    <span id="footerProblemLegend">🔴 Red circle with "!" — reported problem</span>
+                    <span id="footerRoadLegend">🔴 Red line — entire road in bad condition</span>
+                    <span id="footerStationLegend">⛽ — gas station, price shown right on the pin</span>
+                </div>
+            </div>
+
+            <!-- ===== ПРОБЛЕМЫ ===== -->
+            <div id="page-problems" class="page">
+                <div id="problemList">
+                    <div class="loading">⏳ Загрузка проблем...</div>
+                </div>
+
+                <div class="add-form">
+                    <h4 style="margin-bottom:4px;">➕ Сообщить о проблеме</h4>
+                    <input type="text" id="problemTitle" placeholder="Заголовок (например, Яма на дороге)" />
+                    <input type="text" id="problemRegion" placeholder="Регион (например, Москва)" />
+                    <select id="problemCategory">
+                        <option value="Дороги">🚧 Дороги</option>
+                        <option value="Освещение">💡 Освещение</option>
+                        <option value="ЖКХ">🏠 ЖКХ</option>
+                        <option value="Мусор">🗑 Мусор</option>
+                        <option value="other">📌 Другое</option>
+                    </select>
+                    <div id="selectedCoords" class="selected-marker-info" style="display:none;">
+                        <span id="selectedCoordsLabel">📍 Location:</span> <span id="coordDisplay"></span>
+                        <button type="button" onclick="window.clearSelectedPoint()" style="background:transparent;border:1px solid #f5a623;color:#f5a623;padding:2px 12px;border-radius:30px;cursor:pointer;margin-left:8px;">✕</button>
+                    </div>
+                    <input type="hidden" id="problemLat" />
+                    <input type="hidden" id="problemLng" />
+                    <button type="button" id="openPickerBtn" style="background:#3a6ea5;color:#fff;">📍 Choose location on map</button>
+                    <button type="button" id="roadModeBtn" style="background:#26344a;color:#f5c542;">🚧 Mark the whole road (multiple points)</button>
+                    <input type="file" id="problemFile" accept="image/*" class="file-input" />
+                    <button id="submitProblem">Отправить на проверку</button>
+                    <div id="problemHelpText" style="font-size:0.7rem;color:#7e92b0;margin-top:6px;">
+                        🤖 ИИ проверит фото (если загружено) • <span id="problemHelpPick" style="color:#f5a623;">📍 Choose location on map</span> to set coordinates
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== НАСТРОЙКИ ===== -->
+            <div id="page-settings" class="page">
+                <div class="settings-card">
+                    <div class="settings-row">
+                        <span id="settingsThemeLabel">🌓 Тема</span>
+                        <div class="theme-group">
+                            <button class="theme-btn" data-theme="dark">Тёмная</button>
+                            <button class="theme-btn active" data-theme="light">Светлая</button>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <span id="settingsLanguageLabel">🌐 Язык</span>
+                        <div class="theme-group lang-group" aria-label="Language">
+                            <button class="theme-btn lang-btn active" data-lang="ru" type="button">Русский</button>
+                            <button class="theme-btn lang-btn" data-lang="en" type="button">English</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <div class="settings-row">
+                        <span id="supportLabel">💬 Поддержка</span>
+                        <div class="chat-support">
+                            <input type="text" placeholder="Напишите..." id="chatInput" />
+                            <span id="chatSend">➤</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="register-box">
+                    <h4 style="margin-bottom:12px;">🔐 Вход / Регистрация</h4>
+                    <input type="email" id="regEmail" placeholder="Email" />
+                    <input type="password" id="regPass" placeholder="Пароль (мин. 8 символов)" />
+                    <button class="btn-reg" id="regButton">Зарегистрироваться</button>
+                    <button class="btn-reg" id="loginButton" style="background:#4a7a5a;">Войти</button>
+                    <button class="btn-logout" id="logoutButton" style="display:none;">Выйти</button>
+                    <div class="reg-msg" id="regMessage"></div>
+                    <div class="user-status" id="userStatusBox">👤 Вы: гость</div>
+                </div>
+
+                <div class="settings-card" id="adminCard" style="display:none;">
+                    <h4 style="margin-bottom:10px;">🛠 Админ-панель</h4>
+                    <div class="settings-row" style="display:block;">
+                        <span>🤖 Ключ DeepSeek (проверка фото ИИ)</span>
+                        <input type="password" id="deepseekKeyInput" placeholder="Оставьте пустым, чтобы не менять" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
+                        <div id="deepseekKeyStatus" style="font-size:0.75rem;color:#7e92b0;margin-top:6px;"></div>
+                        <button type="button" id="saveDeepseekKey" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#f5a623;color:#111;font-weight:700;cursor:pointer;">Сохранить ключ</button>
+                    </div>
+                    <div class="settings-row" style="display:block;border-top:1px solid #29394e;padding-top:12px;">
+                        <span>⛽ Автообновление цен (провайдер, напр. Benzup)</span>
+                        <input type="text" id="priceApiUrlInput" placeholder="URL провайдера, напр. https://api.omt-consult.ru/v2/stations" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
+                        <input type="password" id="priceApiKeyInput" placeholder="Bearer-токен провайдера (оставьте пустым, чтобы не менять)" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
+                        <div id="priceApiStatus" style="font-size:0.75rem;color:#7e92b0;margin-top:6px;"></div>
+                        <div style="font-size:0.7rem;color:#7e92b0;margin-top:4px;">Сервер автоматически использует открытые агрегированные данные «Ехай» как ориентир и, если настроен, точные данные станционного провайдера (например, Benzup). Точные цены помечаются отдельно от медианных. Синхронизация выполняется автоматически каждый час.</div>
+                        <button type="button" id="savePriceApi" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#f5a623;color:#111;font-weight:700;cursor:pointer;">Сохранить провайдера цен</button>
+                    </div>
+                    <div class="settings-row" style="display:block;border-top:1px solid #29394e;padding-top:12px;">
+                        <span>⛽ Добавить АЗС вручную</span>
+                        <input type="text" id="stationName" placeholder="Название АЗС" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
+                        <div id="stationManualHint" style="font-size:0.75rem;color:#7e92b0;margin-top:6px;">Выберите место на карте, затем нажмите «Добавить АЗС в выбранной точке»</div>
+                        <button type="button" id="openPickerBtnAdmin" style="width:100%;margin-top:6px;padding:8px;border-radius:30px;border:1px solid #3a6ea5;background:transparent;color:#3ea6ff;font-weight:700;cursor:pointer;">📍 Choose location on map</button>
+                        <button type="button" id="addStationBtn" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#3a6ea5;color:#fff;font-weight:700;cursor:pointer;">➕ Добавить АЗС в выбранной точке</button>
+                    </div>
+                </div>
+
+                <div class="console">
+                    ⚙️ Console: <span id="consoleMessage">Система готова</span>
+                </div>
+                <div class="footer">SafetyRoad — данные обновляются 24/7</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== МОДАЛКА ВЫБОРА МЕСТА (мини-карта) ===== -->
+    <div id="pickerOverlay" class="picker-overlay">
+        <div class="picker-sheet">
+            <h4 id="pickerTitle">📍 Choose location</h4>
+            <div id="miniMap"></div>
+            <div class="picker-hint" id="pickerHint">Tap the map to place a pin.</div>
+            <div class="picker-actions">
+                <button type="button" id="pickerCancel" style="background:#3a2020;color:#fff;">✕ Cancel</button>
+                <button type="button" id="pickerDone" style="background:#3ea6ff;color:#03192b;">✅ Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer>
+    </script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" defer>
+    </script>
+    <script>
+        (function() {
+            'use strict';
+
+            // ===== КОНФИГ =====
+            const API_URL = window.location.origin + '/api';
+            // Для локальной разработки: const API_URL = 'http://localhost:8080/api';
+            const REFRESH_MS = 45000; // как часто перечитывать проблемы/АЗС с сервера
+
+            // ===== СОСТОЯНИЕ =====
+            let token = localStorage.getItem('token');
+            let user = JSON.parse(localStorage.getItem('user') || 'null'); // {email, role} | null
+            let problems = [];
+            let stations = [];
+            let map;
+            let miniMap;
+            let problemsLayer;
+            let problemsPointsLayer;
+            let stationsLayer;
+            let lastProblemsSignature = '';
+            let lastStationsSignature = '';
+            let lastStationsQuery = '';
+            let stationsLoadInFlight = null;
+            let selectedPoint = null;
+            let selectedMarker = null;
+            let roadMode = false;
+            let roadPoints = [];
+            let roadPreviewLine = null;
+            let roadPreviewMarkers = [];
+            let lastStationsBounds = null;
+
+            function isAdmin() { return user && user.role === 'admin'; }
+
+            // ===== I18N =====
+            const LANG = {
+                ru: {
+                    tabs: { map:'🗺️ Карта', problems:'⚠️ Проблемы', settings:'⚙️ Настройки' },
+                    navigator:'🧭 Навигатор', navSubtitle:'Маршрут с учётом состояния дорог',
+                    myLocation:'Моё местоположение', myGeo:'Моя геолокация', onMap:'📍 На карте',
+                    destination:'Куда ехать? Например: Казань, Кремль', go:'Поехали',
+                    navStartHint:'Введите адрес отправления или выберите точку на карте.',
+                    navDestHint:'Введите адрес назначения или выберите точку на карте.',
+                    locating:'Определяем ваше местоположение…', geoOk:'Геолокация получена. Теперь укажите адрес назначения.',
+                    geoDenied:'Разрешите доступ к геолокации в настройках браузера.',
+                    geoFail:'Не удалось определить местоположение.',
+                    noGeo:'Браузер не поддерживает геолокацию.',
+                    finding:'Ищем адрес…', addressNotFound:'Адрес не найден. Попробуйте указать город и улицу.',
+                    building:'Строим маршрут и проверяем отмеченные проблемы…', routeBuilt:'Маршрут построен до:',
+                    routeUnavailable:'Сервис маршрутизации временно недоступен.', routeNotFound:'Маршрут не найден.',
+                    enterDestination:'Введите адрес назначения.', geocodeFail:'Не удалось найти адрес',
+                    arrival:'Прибытие', badRoads:'Плохих участков', streets:'Улицы по маршруту',
+                    goodRoad:'хорошая дорога', badRoad:'плохой участок',
+                    fast:'⚡ Быстрый', good:'🟢 Хорошие дороги', bad:'🔴 Плохие дороги',
+                    fastDesc:'Самый быстрый из найденных маршрутов.',
+                    goodDesc:'Маршрут по дорогам с меньшим количеством отмеченных проблем.',
+                    badDesc:'Маршрут с большим количеством отмеченных проблем.',
+                    mapProblem:'🔴 Красный круг с «!» — отмеченная проблема',
+                    mapRoad:'🔴 Красная линия — дорога с отмеченной проблемой',
+                    mapFuel:'⛽ — АЗС; цена показана прямо на метке',
+                    theme:'🌓 Тема', dark:'Тёмная', light:'Светлая', language:'🌐 Язык',
+                    support:'💬 Поддержка', register:'🔐 Вход / Регистрация',
+                    registerBtn:'Зарегистрироваться', login:'Войти', logout:'Выйти',
+                    guest:'гость', password:'Пароль (мин. 8 символов)', email:'Email',
+                    problem:'➕ Сообщить о проблеме', choose:'📍 Выбрать место на карте',
+                    markRoad:'🚧 Отметить всю дорогу (несколько точек)',
+                    submit:'Отправить на проверку', noProblems:'Проблем пока нет',
+                    settingsAdmin:'🛠 Админ-панель', deepseek:'🤖 Ключ DeepSeek (проверка фото ИИ)',
+                    saveKey:'Сохранить ключ', fuelProvider:'⛽ Автообновление цен (провайдер)',
+                    saveProvider:'Сохранить провайдера цен', addFuel:'⛽ Добавить АЗС вручную',
+                    systemReady:'Система готова', footer:'SafetyRoad — данные обновляются 24/7',
+                    pickTitle:'📍 Выбрать место', pickCancel:'✕ Отмена', pickDone:'✅ Готово',
+                    pickPoint:'Нажмите на карту, чтобы поставить точку.',
+                    pickRoad:'Нажимайте на карту, чтобы добавить точки дороги, затем нажмите «Готово».',
+                    priceExact:'точная цена', priceMedian:'ориентир', noData:'нет данных',
+                    from:'Отсюда', to:'Сюда', stationUpdated:'Обновлено', source:'Источник',
+                    osmPrice:'Агрегированные данные «Ехай»', providerPrice:'Провайдер цен'
+                },
+                en: {
+                    tabs: { map:'🗺️ Map', problems:'⚠️ Problems', settings:'⚙️ Settings' },
+                    navigator:'🧭 Navigator', navSubtitle:'Routing with road-condition awareness',
+                    myLocation:'My location', myGeo:'My location', onMap:'📍 On map',
+                    destination:'Where to? Example: Kazan, Kremlin', go:'Go',
+                    navStartHint:'Enter a start address or choose a point on the map.',
+                    navDestHint:'Enter a destination or choose a point on the map.',
+                    locating:'Getting your location…', geoOk:'Location found. Now choose a destination.',
+                    geoDenied:'Allow location access in your browser settings.',
+                    geoFail:'Could not determine your location.',
+                    noGeo:'This browser does not support geolocation.',
+                    finding:'Finding address…', addressNotFound:'Address not found. Try adding the city and street.',
+                    building:'Building the route and checking reported road problems…', routeBuilt:'Route built to:',
+                    routeUnavailable:'Routing service is temporarily unavailable.', routeNotFound:'Route not found.',
+                    enterDestination:'Enter a destination.', geocodeFail:'Could not find the address',
+                    arrival:'Arrival', badRoads:'Reported problem sections', streets:'Roads on route',
+                    goodRoad:'good road', badRoad:'reported problem',
+                    fast:'⚡ Fastest', good:'🟢 Fewer problems', bad:'🔴 More problems',
+                    fastDesc:'Fastest route returned by the router.',
+                    goodDesc:'Route with fewer reported problem sections.',
+                    badDesc:'Route with more reported problem sections.',
+                    mapProblem:'🔴 Red circle with “!” — reported problem',
+                    mapRoad:'🔴 Red line — road with a reported problem',
+                    mapFuel:'⛽ — gas station; price is shown on the marker',
+                    theme:'🌓 Theme', dark:'Dark', light:'Light', language:'🌐 Language',
+                    support:'💬 Support', register:'🔐 Sign in / Register',
+                    registerBtn:'Register', login:'Sign in', logout:'Sign out',
+                    guest:'guest', password:'Password (min. 8 characters)', email:'Email',
+                    problem:'➕ Report a problem', choose:'📍 Choose location on map',
+                    markRoad:'🚧 Mark the whole road (multiple points)',
+                    submit:'Submit for review', noProblems:'No problems yet',
+                    settingsAdmin:'🛠 Admin panel', deepseek:'🤖 DeepSeek key (AI photo review)',
+                    saveKey:'Save key', fuelProvider:'⛽ Automatic fuel-price updates (provider)',
+                    saveProvider:'Save price provider', addFuel:'⛽ Add a gas station manually',
+                    systemReady:'System ready', footer:'SafetyRoad — data updated 24/7',
+                    pickTitle:'📍 Choose location', pickCancel:'✕ Cancel', pickDone:'✅ Done',
+                    pickPoint:'Tap the map to place a point.',
+                    pickRoad:'Tap the map to add road points, then press “Done”.',
+                    priceExact:'exact price', priceMedian:'estimate', noData:'no data',
+                    from:'From here', to:'To here', stationUpdated:'Updated', source:'Source',
+                    osmPrice:'Aggregated “Ехай” data', providerPrice:'Price provider'
+                }
+            };
+            let lang = localStorage.getItem('lang') || 'ru';
+            const tr = (key) => (LANG[lang] && LANG[lang][key]) || key;
+
+            function applyLanguage(next) {
+                lang = next === 'en' ? 'en' : 'ru';
+                localStorage.setItem('lang', lang);
+                document.documentElement.lang = lang;
+                const s = LANG[lang];
+
+                const tabLabels = {
+                    map: document.querySelector('[data-tab="map"]'),
+                    problems: document.querySelector('[data-tab="problems"]'),
+                    settings: document.querySelector('[data-tab="settings"]')
+                };
+                Object.entries(tabLabels).forEach(([k, el]) => { if (el) el.textContent = s.tabs[k]; });
+
+                const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+                const setPlaceholder = (id, value) => { const el = document.getElementById(id); if (el) el.placeholder = value; };
+                const setTitle = (id, value) => { const el = document.getElementById(id); if (el) el.title = value; };
+
+                setText('navTitle', s.navigator); setText('navSubtitle', s.navSubtitle);
+                setText('useMyLocationBtn', s.myGeo); setText('pickStartBtn', s.onMap);
+                setText('pickDestinationBtn', s.onMap); setText('buildRouteBtn', s.go);
+                setPlaceholder('navStart', navCurrentPosition ? s.myLocation : s.navStartHint);
+                setPlaceholder('navDestination', s.destination);
+                setTitle('locateMeBtn', s.myLocation);
+                setText('navRouteInfoTitle', s.streets);
+                setText('legendGood', s.goodRoad); setText('legendBad', s.badRoad);
+                setText('footerProblemLegend', s.mapProblem); setText('footerRoadLegend', s.mapRoad); setText('footerStationLegend', s.mapFuel);
+
+                const settingsText = {
+                    settingsLanguageLabel:s.language
+                };
+                Object.entries(settingsText).forEach(([id,v]) => setText(id,v));
+
+                document.querySelectorAll('.theme-btn[data-theme="dark"]').forEach(el => el.textContent = s.dark);
+                document.querySelectorAll('.theme-btn[data-theme="light"]').forEach(el => el.textContent = s.light);
+                document.querySelectorAll('.lang-btn').forEach(el => el.classList.toggle('active', el.dataset.lang === lang));
+                document.querySelectorAll('.nav-mode').forEach(b => { if (LANG[lang][b.dataset.routeMode]) b.textContent = LANG[lang][b.dataset.routeMode]; });
+
+                // Static labels in the three pages.
+                const first = (sel) => document.querySelector(sel);
+                const hProblem = first('#page-problems .add-form h4'); if (hProblem) hProblem.textContent = s.problem;
+                const titleInput = document.getElementById('problemTitle'); if (titleInput) titleInput.placeholder = lang === 'ru' ? 'Заголовок (например, Яма на дороге)' : 'Title (for example: Pothole)';
+                const regionInput = document.getElementById('problemRegion'); if (regionInput) regionInput.placeholder = lang === 'ru' ? 'Регион (например, Москва)' : 'Region (for example: Moscow)';
+                const openPicker = document.getElementById('openPickerBtn'); if (openPicker) openPicker.textContent = s.choose;
+                const roadBtn = document.getElementById('roadModeBtn'); if (roadBtn) roadBtn.textContent = s.markRoad;
+                const submit = document.getElementById('submitProblem'); if (submit) submit.textContent = s.submit;
+                const registerH = first('#page-settings .register-box h4'); if (registerH) registerH.textContent = s.register;
+                const regEmail = document.getElementById('regEmail'); if (regEmail) regEmail.placeholder = s.email;
+                const regPass = document.getElementById('regPass'); if (regPass) regPass.placeholder = s.password;
+                const regBtn = document.getElementById('regButton'); if (regBtn) regBtn.textContent = s.registerBtn;
+                const loginBtn = document.getElementById('loginButton'); if (loginBtn) loginBtn.textContent = s.login;
+                const logoutBtn = document.getElementById('logoutButton'); if (logoutBtn) logoutBtn.textContent = s.logout;
+                const support = first('#page-settings .settings-card .settings-row span'); if (support && support.textContent.includes('Поддержка')) support.textContent = s.support;
+                const adminH = first('#adminCard h4'); if (adminH) adminH.textContent = s.settingsAdmin;
+                const deep = first('#adminCard .settings-row span'); if (deep) deep.textContent = s.deepseek;
+                const saveKey = document.getElementById('saveDeepseekKey'); if (saveKey) saveKey.textContent = s.saveKey;
+                const providerRows = document.querySelectorAll('#adminCard .settings-row'); if (providerRows[1]) { const sp=providerRows[1].querySelector('span'); if(sp) sp.textContent=s.fuelProvider; }
+                const saveProvider = document.getElementById('savePriceApi'); if(saveProvider) saveProvider.textContent=s.saveProvider;
+                if (providerRows[2]) { const sp=providerRows[2].querySelector('span'); if(sp) sp.textContent=s.addFuel; }
+                setText('consoleMessage', s.systemReady);
+                const footer = document.querySelector('.footer'); if (footer) footer.textContent = s.footer;
+                setText('pickerTitle', s.pickTitle); setText('pickerCancel', s.pickCancel); setText('pickerDone', s.pickDone);
+                if (!roadMode) setText('pickerHint', s.pickPoint);
+
+                renderProblems();
+                renderMapMarkers();
+                if (navRoutes.fast) navShowSummary(navRoutes[navActiveMode] || navRoutes.fast);
+            }
+
+            function debounce(fn, ms) {
+                let t;
+                return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+            }
+
+            // ===== ИНИЦИАЛИЗАЦИЯ ОСНОВНОЙ КАРТЫ (только просмотр) =====
+            function initMap() {
+                map = L.map('map', { preferCanvas: true, zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false }).setView([55.76, 37.64], 11);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19,
+                }).addTo(map);
+                map.attributionControl.setPrefix(false); // remove the default Leaflet flag icon + link
+
+                problemsLayer = L.layerGroup().addTo(map);
+                // Point problems are clustered; long road geometries stay in a light layer.
+                problemsPointsLayer = (L.markerClusterGroup
+                    ? L.markerClusterGroup({ maxClusterRadius: 45, disableClusteringAtZoom: 14, chunkedLoading: true })
+                    : L.layerGroup()
+                ).addTo(map);
+                stationsLayer = (L.markerClusterGroup
+                    ? L.markerClusterGroup({ maxClusterRadius: 50, disableClusteringAtZoom: 15 })
+                    : L.layerGroup()
+                ).addTo(map);
+
+                // Подгружаем АЗС только в видимой области карты — меньше данных, меньше лагов.
+                map.on('moveend', debounce(() => loadStations(false), 800));
+                map.on('click', (e) => navHandleMapPick(e.latlng));
+            }
+
+            // ===== МИНИ-КАРТА ДЛЯ ВЫБОРА МЕСТА (модалка) =====
+            let pickerMarker = null;
+            function initMiniMapIfNeeded() {
+                if (miniMap) return;
+                miniMap = L.map('miniMap', { preferCanvas: true, attributionControl: false }).setView(
+                    map ? map.getCenter() : [55.76, 37.64],
+                    map ? map.getZoom() : 11
+                );
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(miniMap);
+
+                miniMap.on('click', function(e) {
+                    if (roadMode) {
+                        roadPoints.push([e.latlng.lat, e.latlng.lng]);
+                        document.getElementById('pickerHint').textContent =
+                            `Points on the route: ${roadPoints.length}. Tap "Done" when finished.`;
+                        const dot = L.circleMarker(e.latlng, { radius: 5, color: '#e53935', fillColor: '#e53935', fillOpacity: 1 }).addTo(miniMap);
+                        roadPreviewMarkers.push(dot);
+                        if (roadPreviewLine) miniMap.removeLayer(roadPreviewLine);
+                        if (roadPoints.length >= 2) {
+                            roadPreviewLine = L.polyline(roadPoints, { color: '#e53935', weight: 6, opacity: 0.8 }).addTo(miniMap);
+                        }
+                        return;
+                    }
+                    selectedPoint = e.latlng;
+                    if (pickerMarker) miniMap.removeLayer(pickerMarker);
+                    pickerMarker = L.marker(selectedPoint, {
+                        icon: L.divIcon({ className: 'selected-marker', html: '📍', iconSize: [30, 30] })
+                    }).addTo(miniMap);
+                    document.getElementById('pickerHint').textContent =
+                        `Selected: ${selectedPoint.lat.toFixed(6)}, ${selectedPoint.lng.toFixed(6)}`;
+                });
+            }
+
+            function openPicker(mode) {
+                initMiniMapIfNeeded();
+                roadMode = mode === 'road';
+                roadPoints = [];
+                if (pickerMarker) { miniMap.removeLayer(pickerMarker); pickerMarker = null; }
+                clearRoadPreview(miniMap);
+                document.getElementById('pickerTitle').textContent = roadMode
+                    ? '🚧 Mark the whole road'
+                    : '📍 Choose location';
+                document.getElementById('pickerHint').textContent = roadMode
+                    ? 'Tap the map to add road points, then hit "Done".'
+                    : 'Tap the map to place a pin.';
+                document.getElementById('pickerOverlay').classList.add('open');
+                setTimeout(() => { if (miniMap) miniMap.invalidateSize(); }, 50);
+            }
+            function closePicker() {
+                document.getElementById('pickerOverlay').classList.remove('open');
+            }
+            function confirmPicker() {
+                if (roadMode) {
+                    if (roadPoints.length < 2) { alert('Отметьте минимум 2 точки вдоль дороги.'); return; }
+                    document.getElementById('consoleMessage').innerText = `🚧 Дорога отмечена: ${roadPoints.length} точек. Заполните форму и отправьте.`;
+                    document.getElementById('selectedCoords').style.display = 'block';
+                    document.getElementById('coordDisplay').textContent = `route (${roadPoints.length} points)`;
+                } else {
+                    if (!selectedPoint) { closePicker(); return; }
+                    document.getElementById('problemLat').value = selectedPoint.lat.toFixed(6);
+                    document.getElementById('problemLng').value = selectedPoint.lng.toFixed(6);
+                    document.getElementById('coordDisplay').textContent =
+                        selectedPoint.lat.toFixed(6) + ', ' + selectedPoint.lng.toFixed(6);
+                    document.getElementById('selectedCoords').style.display = 'block';
+                }
+                closePicker();
+            }
+            // ===== ОЧИСТКА ПРЕВЬЮ ДОРОГИ НА МИНИ-КАРТЕ =====
+            function clearRoadPreview(targetMap) {
+                const m = targetMap || miniMap;
+                if (!m) return;
+                if (roadPreviewLine) { m.removeLayer(roadPreviewLine); roadPreviewLine = null; }
+                roadPreviewMarkers.forEach((mk) => m.removeLayer(mk));
+                roadPreviewMarkers = [];
+            }
+            // ===== ОЧИСТКА ВЫБРАННОЙ ТОЧКИ =====
+            window.clearSelectedPoint = function() {
+                selectedPoint = null;
+                roadMode = false;
+                roadPoints = [];
+                document.getElementById('problemLat').value = '';
+                document.getElementById('problemLng').value = '';
+                document.getElementById('selectedCoords').style.display = 'none';
+                if (pickerMarker && miniMap) { miniMap.removeLayer(pickerMarker); pickerMarker = null; }
+                clearRoadPreview();
+            };
+
+            // ===== API ВЫЗОВЫ =====
+            async function apiRequest(endpoint, options = {}) {
+                const headers = { 'Content-Type': 'application/json', ...options.headers };
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+                const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({ error: 'Ошибка сервера' }));
+                    throw new Error(error.error || `HTTP ${response.status}`);
+                }
+                if (response.status === 204) return null;
+                return response.json();
+            }
+
+            // ===== ЗАГРУЗКА ДАННЫХ =====
+            async function loadProblems() {
+                try {
+                    problems = await apiRequest('/problems');
+                    renderProblems();
+                    renderMapMarkers();
+                    document.getElementById('consoleMessage').innerText = lang === 'en' ? `✅ Loaded ${problems.length} reports` : `✅ Загружено ${problems.length} проблем`;
+                } catch (err) {
+                    document.getElementById('consoleMessage').innerText = lang === 'en' ? `❌ Failed to load reports: ${err.message}` : `❌ Ошибка загрузки проблем: ${err.message}`;
+                }
+            }
+            async function loadStations(force = false) {
+                if (!map) return;
+                const b = map.getBounds();
+                // Round the viewport to prevent a request on every tiny pan/zoom.
+                const params = new URLSearchParams({
+                    minLat: b.getSouth().toFixed(3), minLng: b.getWest().toFixed(3),
+                    maxLat: b.getNorth().toFixed(3), maxLng: b.getEast().toFixed(3),
+                });
+                if (map.getZoom() < 8) params.set('refresh', '0');
+                const query = params.toString();
+                if (!force && query === lastStationsQuery) return;
+                if (stationsLoadInFlight) return stationsLoadInFlight;
+                lastStationsQuery = query;
+                stationsLoadInFlight = apiRequest('/stations?' + query).then(data => {
+                    stations = Array.isArray(data) ? data : [];
+                    renderMapMarkers();
+                }).catch(err => {
+                    document.getElementById('consoleMessage').innerText = lang === 'en' ? `❌ Failed to load gas stations: ${err.message}` : `❌ Ошибка загрузки АЗС: ${err.message}`;
+                }).finally(() => {
+                    stationsLoadInFlight = null;
+                });
+                return stationsLoadInFlight;
+            }
+
+            const STATUS_LABELS = {
+                new: 'На проверке', confirmed: 'Подтверждено', rejected: 'Отклонено'
+            };
+            function statusLabel(status) {
+                const map = lang === 'en'
+                    ? { new:'Pending review', confirmed:'Confirmed', rejected:'Rejected' }
+                    : { new:'На проверке', confirmed:'Подтверждено', rejected:'Отклонено' };
+                return map[status] || status;
+            }
+            function categoryLabel(category) {
+                const map = lang === 'en'
+                    ? { 'Дороги':'Roads', 'Освещение':'Lighting', 'ЖКХ':'Utilities', 'Мусор':'Waste', other:'Other' }
+                    : { 'Дороги':'Дороги', 'Освещение':'Освещение', 'ЖКХ':'ЖКХ', 'Мусор':'Мусор', other:'Другое' };
+                return map[category] || category || (lang === 'en' ? 'Other' : 'Другое');
+            }
+
+            // ===== ОТРИСОВКА МАРКЕРОВ НА КАРТЕ =====
+            function problemIcon() {
+                return L.divIcon({
+                    className: 'problem-pin',
+                    html: '<div style="background:#e53935;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.6)">!</div>',
+                    iconSize: [26, 26],
+                    iconAnchor: [13, 13],
+                });
+            }
+
+            function priceLine(label, value) {
+                return `${label}: ${value != null ? Number(value).toFixed(1) + (lang === 'en' ? ' ₽/L' : ' ₽/л') : tr('noData')}`;
+            }
+
+            function stationPriceSource(s) {
+                if (!s.price_source) return '';
+                const exact = s.price_kind === 'exact' || s.price_kind === 'manual';
+                const label = exact ? tr('priceExact') : tr('priceMedian');
+                const source = s.price_source;
+                const when = s.price_updated_at || s.updated_at;
+                const stamp = when ? new Date(when).toLocaleString(lang === 'en' ? 'en-GB' : 'ru-RU') : '';
+                return `<div class="station-price-source">${tr('source')}: ${navEscape(source)} · ${label}${stamp ? ` · ${stamp}` : ''}</div>`;
+            }
+
+            function stationPopupHtml(s) {
+                const lines = [
+                    priceLine('⛽ AI-92', s.price_92),
+                    priceLine('⛽ AI-95', s.price_95),
+                    priceLine('⛽ AI-98+', s.price_98),
+                    priceLine('🛢 Diesel', s.price_dt),
+                ].join('<br/>');
+                const updated = s.updated_at ? `<br/><span style="font-size:.7rem;color:#8899bb">${tr('stationUpdated')}: ${new Date(s.updated_at).toLocaleString(lang === 'en' ? 'en-GB' : 'ru-RU')}</span>` : '';
+                const label = `${s.name}${s.brand ? ' (' + s.brand + ')' : ''}`;
+                const actions = `
+                    <div class="station-actions">
+                        <button onclick="window.navSetPointAsStart(${Number(s.lat)},${Number(s.lng)},${JSON.stringify(label)})">${tr('from')}</button>
+                        <button onclick="window.navSetPointAsDestination(${Number(s.lat)},${Number(s.lng)},${JSON.stringify(label)})">${tr('to')}</button>
+                        ${isAdmin() ? `<button onclick="window.__editStationPrices(${s.id})">✏️ ${lang === 'en' ? 'Update prices' : 'Обновить цены'}</button>` : ''}
+                    </div>`;
+                return `<b>${navEscape(label)}</b><br/>${lines}${stationPriceSource(s)}${updated}${actions}`;
+            }
+
+            window.__editStationPrices = async function(id) {
+                const s = stations.find((x) => x.id === id);
+                if (!s) return;
+                const p92 = prompt('92 octane, ₽ (leave blank to keep unchanged):', s.price_92 ?? '');
+                const p95 = prompt('95 octane, ₽ (leave blank to keep unchanged):', s.price_95 ?? '');
+                const p98 = prompt('98 octane, ₽ (leave blank to keep unchanged):', s.price_98 ?? '');
+                const dt = prompt('Diesel, ₽ (leave blank to keep unchanged):', s.price_dt ?? '');
+                const body = {};
+                if (p92 !== null && p92 !== '') body.price92 = parseFloat(p92);
+                if (p95 !== null && p95 !== '') body.price95 = parseFloat(p95);
+                if (p98 !== null && p98 !== '') body.price98 = parseFloat(p98);
+                if (dt !== null && dt !== '') body.priceDt = parseFloat(dt);
+                try {
+                    await apiRequest(`/stations/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+                    await loadStations();
+                    document.getElementById('consoleMessage').innerText = '✅ Цены обновлены';
+                } catch (err) {
+                    alert('Ошибка: ' + err.message);
+                }
+            };
+
+            function stationIcon(s) {
+                const price = s.price_92 ?? s.price_95 ?? s.price_98 ?? s.price_dt;
+                const label = price != null ? `⛽ ${Number(price).toFixed(1)}₽` : '⛽';
+                const kind = s.price_kind === 'exact' || s.price_kind === 'manual' ? tr('priceExact') : (price != null ? tr('priceMedian') : '');
+                return L.divIcon({
+                    className: 'station-price-icon',
+                    html: `<div class="station-price-pin">${label}${kind ? `<span class="price-kind">${kind}</span>` : ''}</div>`,
+                    iconSize: null,
+                    iconAnchor: [0, 0],
+                });
+            }
+
+            function renderMapMarkers() {
+                if (!map || !problemsLayer || !problemsPointsLayer || !stationsLayer) return;
+
+                const problemSignature = problems.map(p => [p.id, p.status, p.lat, p.lng, p.is_road, p.route?.length || 0, p.title_ru].join('|')).join('§');
+                const stationSignature = stations.map(s => [s.id, s.lat, s.lng, s.price_92, s.price_95, s.price_98, s.price_dt].join('|')).join('§');
+
+                if (problemSignature !== lastProblemsSignature) {
+                    lastProblemsSignature = problemSignature;
+                    problemsLayer.clearLayers();
+                    problemsPointsLayer.clearLayers();
+                    problems.forEach((p) => {
+                        if (p.status === 'rejected') return;
+                        if (p.is_road && Array.isArray(p.route) && p.route.length >= 2) {
+                            const line = L.polyline(p.route, { color: '#e53935', weight: 7, opacity: 0.82, interactive: true });
+                            line.bindPopup(`<b>🚧 ${navEscape(lang === 'en' ? (p.title_en || p.title_ru || 'Bad road') : (p.title_ru || 'Плохая дорога'))}</b><br/>📍 ${navEscape(p.region || '')}<br/>📊 ${statusLabel(p.status)}
+                            <div class="station-actions">
+                                <button onclick="window.navSetPointAsStart(${Number(p.lat || p.route?.[0]?.[0] || 0)},${Number(p.lng || p.route?.[0]?.[1] || 0)},${JSON.stringify(p.region || '')})">${tr('from')}</button>
+                            </div>`);
+                            problemsLayer.addLayer(line);
+                        } else if (p.lat != null && p.lng != null) {
+                            const marker = L.marker([p.lat, p.lng], { icon: problemIcon() });
+                            const problemTitle = lang === 'en' ? (p.title_en || p.title_ru || 'Untitled') : (p.title_ru || 'Без названия');
+                            marker.bindPopup(`<b>${navEscape(problemTitle)}</b><br/>📍 ${navEscape(p.region || (lang === 'en' ? 'Not specified' : 'Не указан'))}<br/>🏷 ${categoryLabel(p.category)}<br/>📊 ${statusLabel(p.status)}${p.created_at ? `<br/>🕐 ${new Date(p.created_at).toLocaleDateString(lang === 'en' ? 'en-GB' : 'ru-RU')}` : ''}${p.ai_verdict ? `<br/><span style="color:#4caf50">🤖 ${navEscape(p.ai_verdict)}</span>` : ''}
+                                <div class="station-actions">
+                                    <button onclick="window.navSetPointAsStart(${Number(p.lat)},${Number(p.lng)},${JSON.stringify(problemTitle)})">${tr('from')}</button>
+                                    <button onclick="window.navSetPointAsDestination(${Number(p.lat)},${Number(p.lng)},${JSON.stringify(problemTitle)})">${tr('to')}</button>
+                                </div>`);
+                            problemsPointsLayer.addLayer(marker);
+                        }
+                    });
+                }
+
+                if (stationSignature !== lastStationsSignature) {
+                    lastStationsSignature = stationSignature;
+                    stationsLayer.clearLayers();
+                    const fragment = L.layerGroup();
+                    stations.forEach((st) => {
+                        if (st.lat == null || st.lng == null) return;
+                        const marker = L.marker([st.lat, st.lng], { icon: stationIcon(st) });
+                        marker.bindPopup(stationPopupHtml(st));
+                        fragment.addLayer(marker);
+                    });
+                    stationsLayer.addLayer(fragment);
+                }
+            }
+
+            // ===== ОТРИСОВКА СПИСКА ПРОБЛЕМ =====
+            function renderProblems() {
+                const container = document.getElementById('problemList');
+                if (!container) return;
+                container.innerHTML = '';
+                if (problems.length === 0) {
+                    container.innerHTML = `<div class="loading">✅ ${tr('noProblems')}</div>`;
+                    return;
+                }
+                problems.slice(0,50).forEach((p) => {
+                    const div=document.createElement('div');
+                    div.className='problem-item';
+                    const status=p.status||'new';
+                    let badgeClass='badge new';
+                    if(status==='confirmed') badgeClass='badge ai';
+                    else if(status==='rejected') badgeClass='badge pending';
+                    const title=lang==='en' ? (p.title_en||p.title_ru||'Untitled') : (p.title_ru||'Без названия');
+                    const coordsText=p.is_road
+                        ? (lang==='en' ? '🚧 whole road' : '🚧 вся дорога')
+                        : (p.lat!=null&&p.lng!=null)
+                            ? `${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}`
+                            : (lang==='en' ? '📍 coordinates not specified' : '📍 координаты не указаны');
+                    div.innerHTML=`
+                        <div class="title"><span>${navEscape(title)}</span><span class="${badgeClass}">${statusLabel(status)}</span></div>
+                        <div class="meta">
+                            <span>📍 ${navEscape(p.region || (lang==='en'?'Not specified':'Не указан'))}</span>
+                            <span>📂 ${categoryLabel(p.category)}</span>
+                            ${p.created_at?`<span>🕐 ${new Date(p.created_at).toLocaleDateString(lang==='en'?'en-GB':'ru-RU')}</span>`:''}
+                        </div>
+                        <div class="coords">${coordsText}</div>
+                        ${p.ai_verdict?`<div style="font-size:.7rem;color:#8bc34a;margin-top:4px;">🤖 ${navEscape(p.ai_verdict)}</div>`:''}
+                    `;
+                    container.appendChild(div);
+                });
+            }
+
+            // ===== ОТПРАВКА ПРОБЛЕМЫ =====
+            async function submitProblem() {
+                const submitBtn = document.getElementById('submitProblem');
+                const title = document.getElementById('problemTitle').value.trim();
+                const region = document.getElementById('problemRegion').value.trim();
+                const category = document.getElementById('problemCategory').value;
+                const file = document.getElementById('problemFile').files[0];
+
+                if (!token) { alert('Сначала войдите в аккаунт (вкладка «Настройки»).'); return; }
+                if (!title) { alert('Укажите заголовок проблемы.'); return; }
+                if (!roadMode && roadPoints.length === 0 && !selectedPoint) { alert('Нажмите «Выбрать место на карте» или «Обозначить всю дорогу».'); return; }
+
+                submitBtn.disabled = true;
+                submitBtn.textContent = '⏳ Отправка...';
+                try {
+                    let imageDataUrl = null;
+                    if (file) {
+                        imageDataUrl = await new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => resolve(e.target.result);
+                            reader.readAsDataURL(file);
+                        });
+                    }
+
+                    const isRoadSubmit = roadPoints.length >= 2 && !roadMode;
+                    const body = {
+                        region: region || 'Не указан',
+                        category: category || 'other',
+                        severity: 'med',
+                        titleRu: title,
+                        titleEn: title,
+                        imageDataUrl,
+                    };
+                    if (isRoadSubmit) {
+                        body.isRoad = true;
+                        body.route = roadPoints;
+                    } else if (selectedPoint) {
+                        body.lat = selectedPoint.lat;
+                        body.lng = selectedPoint.lng;
+                    }
+
+                    const data = await apiRequest('/problems', { method: 'POST', body: JSON.stringify(body) });
+                    problems.unshift(data);
+                    renderProblems();
+                    renderMapMarkers();
+                    document.getElementById('consoleMessage').innerText = `✅ Проблема добавлена!${data.ai_verdict ? ' 🤖 ' + data.ai_verdict : ''}`;
+
+                    window.clearSelectedPoint();
+                    document.getElementById('problemTitle').value = '';
+                    document.getElementById('problemFile').value = '';
+                } catch (err) {
+                    alert('Ошибка при добавлении: ' + err.message);
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Отправить на проверку';
+                }
+            }
+
+            // ===== РЕГИСТРАЦИЯ / ВХОД / ВЫХОД =====
+            async function register(email, password) {
+                try {
+                    const data = await apiRequest('/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
+                    applySession(data);
+                    showRegMsg('✅ Регистрация успешна!', true);
+                } catch (err) { showRegMsg('❌ ' + err.message, false); }
+            }
+            async function login(email, password) {
+                try {
+                    const data = await apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+                    applySession(data);
+                    showRegMsg('✅ Вход выполнен!', true);
+                    loadProblems();
+                } catch (err) { showRegMsg('❌ ' + err.message, false); }
+            }
+            function logout() {
+                token = null; user = null;
+                localStorage.removeItem('token'); localStorage.removeItem('user');
+                updateUI();
+                showRegMsg('👋 Вы вышли', null);
+            }
+            function applySession(data) {
+                token = data.token;
+                user = data.user; // {email, role}
+                localStorage.setItem('token', token);
+                localStorage.setItem('user', JSON.stringify(user));
+                updateUI();
+            }
+            function showRegMsg(text, ok) {
+                const el = document.getElementById('regMessage');
+                el.innerText = text;
+                el.className = 'reg-msg' + (ok === true ? ' success' : ok === false ? ' error' : '');
+            }
+
+            // ===== АДМИН-ПАНЕЛЬ =====
+            async function loadAdminSettings() {
+                if (!isAdmin()) return;
+                try {
+                    const s = await apiRequest('/admin/settings');
+                    document.getElementById('deepseekKeyStatus').textContent = s.deepseekKeySet
+                        ? (lang==='en'?'🔑 Key saved':'🔑 Ключ сохранён')
+                        : (lang==='en'?'⚠️ Key not set — AI photo review is disabled':'⚠️ Ключ не задан — проверка фото ИИ отключена');
+                    document.getElementById('priceApiStatus').textContent = s.priceApiKeySet
+                        ? (lang==='en'?'🔑 Provider configured':'🔑 Провайдер настроен')
+                        : (lang==='en'?'ℹ️ Exact station prices are not configured; aggregate source is used':'ℹ️ Точные цены по АЗС не настроены; используется агрегированный источник');
+                    document.getElementById('priceApiUrlInput').value = s.priceApiUrl || '';
+                } catch { /* тихо игнорируем — не критично для остального интерфейса */ }
+            }
+            async function saveDeepseekKey() {
+                const val = document.getElementById('deepseekKeyInput').value;
+                try {
+                    const s = await apiRequest('/admin/settings', { method: 'PUT', body: JSON.stringify({ deepseekApiKey: val }) });
+                    document.getElementById('deepseekKeyStatus').textContent = s.deepseekKeySet ? '🔑 Ключ сохранён' : 'Ключ очищен';
+                    document.getElementById('deepseekKeyInput').value = '';
+                } catch (err) { alert('Ошибка: ' + err.message); }
+            }
+            async function savePriceApi() {
+                const priceApiUrl = document.getElementById('priceApiUrlInput').value.trim();
+                const priceApiKey = document.getElementById('priceApiKeyInput').value;
+                try {
+                    const s = await apiRequest('/admin/settings', { method: 'PUT', body: JSON.stringify({ priceApiUrl, priceApiKey }) });
+                    document.getElementById('priceApiStatus').textContent = s.priceApiKeySet ? '🔑 Провайдер настроен' : 'Токен очищен';
+                    document.getElementById('priceApiKeyInput').value = '';
+                } catch (err) { alert('Ошибка: ' + err.message); }
+            }
+            async function addStationManually() {
+                const name = document.getElementById('stationName').value.trim();
+                if (!name) { alert('Введите название АЗС.'); return; }
+                if (!selectedPoint) { alert('Сначала выберите место на карте (кнопка «Choose location on map»).'); return; }
+                try {
+                    await apiRequest('/stations', { method: 'POST', body: JSON.stringify({ name, lat: selectedPoint.lat, lng: selectedPoint.lng }) });
+                    document.getElementById('stationName').value = '';
+                    window.clearSelectedPoint();
+                    await loadStations();
+                    document.getElementById('consoleMessage').innerText = '✅ АЗС добавлена';
+                } catch (err) { alert('Ошибка: ' + err.message); }
+            }
+
+            // ===== ОБНОВЛЕНИЕ UI =====
+            function updateUI() {
+                const userBadge = document.getElementById('userBadge');
+                if (userBadge) userBadge.innerText = '👤 ' + (user ? user.email + (isAdmin() ? (lang === 'en' ? ' (admin)' : ' (админ)') : '') : tr('guest'));
+
+                document.getElementById('regButton').style.display = token ? 'none' : 'block';
+                document.getElementById('loginButton').style.display = token ? 'none' : 'block';
+                document.getElementById('logoutButton').style.display = token ? 'block' : 'none';
+                document.getElementById('userStatusBox').innerText = lang === 'en' ? '👤 You: ' + (user ? user.email : tr('guest')) : '👤 Вы: ' + (user ? user.email : tr('guest'));
+
+                document.getElementById('submitProblem').disabled = !token;
+
+                const adminCard = document.getElementById('adminCard');
+                adminCard.style.display = isAdmin() ? 'block' : 'none';
+                if (isAdmin()) loadAdminSettings();
+            }
+
+            // ===== ВКЛАДКИ / ТЕМА =====
+            function switchTab(tabId) {
+                document.querySelectorAll('.tab').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tabId));
+                document.querySelectorAll('.page').forEach((page) => page.classList.toggle('active', page.id === 'page-' + tabId));
+                if (tabId === 'map' && map) setTimeout(() => map.invalidateSize(), 50); // карта была скрыта — пересчитать размер
+            }
+            function applyTheme(theme) {
+                document.body.classList.toggle('light', theme === 'light');
+                document.querySelectorAll('.theme-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.theme === theme));
+                localStorage.setItem('theme', theme);
+            }
+
+
+            // ===== НАВИГАТОР: АДРЕС → МАРШРУТ → УЛИЦЫ → ETA =====
+            const NAV_NOMINATIM = API_URL + '/geocode';
+            const NAV_OSRM = 'https://router.project-osrm.org/route/v1/driving';
+
+            let navCurrentPosition = null;
+            let navRoutes = { fast: null, good: null, bad: null };
+            let navRouteLayers = [];
+            let navActiveMode = 'fast';
+            let navDestinationPoint = null;
+            let navStartPoint = null;
+            let navPickMode = null; // 'start' | 'destination' | null
+            let navRouteRequestId = 0;
+            let navSuggestTimers = { start: null, destination: null };
+
+            function navSetStatus(text, type = '') {
+                const el = document.getElementById('navStatus');
+                if (!el) return;
+                el.textContent = text;
+                el.className = 'nav-status' + (type ? ' ' + type : '');
+            }
+
+            function navEscape(value) {
+                return String(value ?? '').replace(/[&<>"']/g, ch => ({
+                    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+                }[ch]));
+            }
+
+            function navFormatDistance(meters) {
+                const m = lang === 'en' ? ' m' : ' м';
+                const km = lang === 'en' ? ' km' : ' км';
+                if (meters < 1000) return Math.round(meters) + m;
+                return (meters / 1000).toFixed(meters < 10000 ? 1 : 0) + km;
+            }
+
+            function navFormatDuration(seconds) {
+                const mins = Math.max(1, Math.round(seconds / 60));
+                if (mins < 60) return lang === 'en' ? `${mins} min` : `${mins} мин`;
+                const h = Math.floor(mins / 60), m = mins % 60;
+                if (lang === 'en') return m ? `${h} h ${m} min` : `${h} h`;
+                return m ? `${h} ч ${m} мин` : `${h} ч`;
+            }
+
+            function navArrival(seconds) {
+                const d = new Date(Date.now() + seconds * 1000);
+                return d.toLocaleTimeString(lang === 'en' ? 'en-GB' : 'ru-RU', { hour:'2-digit', minute:'2-digit' });
+            }
+
+                        // Приближённая проверка: попадает ли точка маршрута рядом с известным плохим участком.
+            function navBadPointCloud() {
+                const cloud = [];
+                (problems || []).forEach(p => {
+                    if (p.status === 'rejected') return;
+                    if (p.is_road && Array.isArray(p.route)) {
+                        p.route.forEach(pt => {
+                            if (Array.isArray(pt) && pt.length >= 2) cloud.push([Number(pt[0]), Number(pt[1])]);
+                        });
+                    } else if (p.lat != null && p.lng != null) {
+                        cloud.push([Number(p.lat), Number(p.lng)]);
+                    }
+                });
+                return cloud;
+            }
+
+            function navBuildBadGrid(cloud, cellSize = 0.001) {
+                const grid = new Map();
+                cloud.forEach(p => {
+                    const key = `${Math.floor(p[0]/cellSize)},${Math.floor(p[1]/cellSize)}`;
+                    if (!grid.has(key)) grid.set(key, []);
+                    grid.get(key).push(p);
+                });
+                return { grid, cellSize };
+            }
+            let navBadGridCache = null;
+            let navBadGridSignature = '';
+            function navGetBadGrid() {
+                const cloud = navBadPointCloud();
+                const sig = cloud.map(p => p.join(',')).join(';');
+                if (sig !== navBadGridSignature) { navBadGridSignature = sig; navBadGridCache = navBuildBadGrid(cloud); }
+                return navBadGridCache;
+            }
+            function navPointNearBad(point, cloud, radius = 90) {
+                const gridObj = navGetBadGrid();
+                if (!gridObj || !gridObj.grid.size) return false;
+                const cs = gridObj.cellSize;
+                const cx = Math.floor(point[0]/cs), cy = Math.floor(point[1]/cs);
+                // 90m ≈ 0.001° at city latitudes; check nearby cells.
+                for (let dx=-1; dx<=1; dx++) for (let dy=-1; dy<=1; dy++) {
+                    const arr = gridObj.grid.get(`${cx+dx},${cy+dy}`) || [];
+                    for (const bad of arr) if (navHaversine(point, bad) <= radius) return true;
+                }
+                return false;
+            }
+
+            function navRouteBadMetrics(route) {
+                const cloud = navBadPointCloud();
+                const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+                let badPoints = 0, badMeters = 0;
+                for (let i = 1; i < coords.length; i++) {
+                    const seg = navHaversine(coords[i-1], coords[i]);
+                    const mid = [(coords[i-1][0] + coords[i][0])/2, (coords[i-1][1] + coords[i][1])/2];
+                    if (navPointNearBad(coords[i], cloud) || navPointNearBad(mid, cloud)) {
+                        badPoints++;
+                        badMeters += seg;
+                    }
+                }
+                return { badPoints, badMeters };
+            }
+
+            function navClearLayers() {
+                navRouteLayers.forEach(layer => { try { map.removeLayer(layer); } catch (_) {} });
+                navRouteLayers = [];
+            }
+
+            function navDrawRoute(route, mode) {
+                if (!map || !route) return;
+                navClearLayers();
+                const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+                const cloud = navBadPointCloud();
+
+                const outline = L.polyline(coords, { color:'#152235', weight:10, opacity:.9, lineCap:'round', lineJoin:'round', interactive:false }).addTo(map);
+                navRouteLayers.push(outline);
+
+                // Do not create one Leaflet layer per coordinate. Group consecutive segments
+                // of the same quality into a single line — this keeps long routes smooth.
+                let run = [coords[0]];
+                let runBad = navPointNearBad(coords[0], cloud);
+                for (let i = 1; i < coords.length; i++) {
+                    const a = coords[i-1], b = coords[i];
+                    const mid = [(a[0]+b[0])/2, (a[1]+b[1])/2];
+                    const bad = navPointNearBad(b, cloud) || navPointNearBad(mid, cloud);
+                    if (bad !== runBad && run.length > 1) {
+                        const segment = L.polyline(run, { color:runBad ? '#e53935' : '#25c26e', weight:7, opacity:.95, lineCap:'round', lineJoin:'round', interactive:false }).addTo(map);
+                        navRouteLayers.push(segment);
+                        run = [run[run.length-1], b];
+                        runBad = bad;
+                    } else {
+                        run.push(b);
+                    }
+                }
+                if (run.length > 1) {
+                    const segment = L.polyline(run, { color:runBad ? '#e53935' : '#25c26e', weight:7, opacity:.95, lineCap:'round', lineJoin:'round', interactive:false }).addTo(map);
+                    navRouteLayers.push(segment);
+                }
+
+                const start = coords[0], end = coords[coords.length - 1];
+                navRouteLayers.push(
+                    L.circleMarker(start, {radius:7,color:'#fff',weight:3,fillColor:'#25c26e',fillOpacity:1,interactive:false}).addTo(map),
+                    L.circleMarker(end, {radius:7,color:'#fff',weight:3,fillColor:'#e53935',fillOpacity:1,interactive:false}).addTo(map)
+                );
+            }
+
+            function navStepText(step) {
+                const maneuver = step.maneuver || {};
+                const type = maneuver.type || '';
+                const mod = maneuver.modifier || '';
+                const road = step.name || (lang === 'en' ? 'unnamed road' : 'дорога без названия');
+                const mapType = lang === 'en' ? {
+                    depart:'Start', arrive:'Arrive', turn:'Turn', merge:'Merge',
+                    on_ramp:'Take the ramp', off_ramp:'Leave the ramp', fork:'At the fork',
+                    roundabout:'At the roundabout', rotary:'At the roundabout',
+                    continue:'Continue', new_name:'Continue on', end_of_road:'At the end of the road'
+                } : {
+                    depart:'Начните движение', arrive:'Вы прибыли', turn:'Поверните', merge:'Перестройтесь',
+                    on_ramp:'Съезд на', off_ramp:'Съезд с', fork:'На развилке',
+                    roundabout:'На круговом движении', rotary:'На круговом движении',
+                    continue:'Продолжайте движение', new_name:'Продолжайте по новой улице',
+                    end_of_road:'В конце дороги'
+                };
+                const dirs = lang === 'en'
+                    ? { left:'left', right:'right', straight:'straight', slight_left:'slightly left', slight_right:'slightly right', uturn:'make a U-turn' }
+                    : { left:'налево', right:'направо', straight:'прямо', slight_left:'слегка налево', slight_right:'слегка направо', uturn:'развернитесь' };
+                let action = mapType[type] || (lang === 'en' ? 'Continue' : 'Продолжайте движение');
+                if (['turn','fork','merge','roundabout','rotary'].includes(type) && mod) action += ' ' + (dirs[mod] || mod);
+                return { action, road };
+            }
+
+            function navRenderSteps(route) {
+                const box = document.getElementById('navSteps');
+                if (!box) return;
+                box.innerHTML = '';
+                const steps = [];
+                (route.legs || []).forEach(leg => (leg.steps || []).forEach(s => steps.push(s)));
+                steps.forEach((step, idx) => {
+                    const t = navStepText(step);
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span class="nav-step-street">${navEscape(t.action)} — ${navEscape(t.road)}</span>
+                        <span class="nav-step-meta">${navFormatDistance(step.distance || 0)} · ${navFormatDuration(step.duration || 0)}</span>`;
+                    box.appendChild(li);
+                });
+            }
+
+            function navShowSummary(route) {
+                const metrics = navRouteBadMetrics(route);
+                document.getElementById('navSummary').style.display = 'block';
+                document.getElementById('navModes').style.display = 'flex';
+                document.getElementById('navRouteInfo').style.display = 'block';
+                document.getElementById('navLegend').style.display = 'flex';
+                document.getElementById('navEta').textContent = navFormatDuration(route.duration);
+                document.getElementById('navArrival').textContent = tr('arrival') + ' ' + navArrival(route.duration);
+                document.getElementById('navDistance').textContent = navFormatDistance(route.distance);
+                document.getElementById('navBadDistance').textContent = tr('badRoads') + ': ' + navFormatDistance(metrics.badMeters);
+                document.querySelectorAll('.nav-mode').forEach(b => {
+                    const mode = b.dataset.routeMode;
+                    b.textContent = LANG[lang][mode] || b.textContent;
+                });
+                navRenderSteps(route);
+            }
+
+            async function navGeocode(query) {
+                const url = `${NAV_NOMINATIM}?limit=1&country=${lang === 'en' ? 'ru' : 'ru'}&lang=${lang}&q=${encodeURIComponent(query)}`;
+                const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                if (!response.ok) throw new Error(tr('geocodeFail'));
+                const data = await response.json();
+                if (!data.length) throw new Error(tr('addressNotFound'));
+                return { lat:Number(data[0].lat), lng:Number(data[0].lon), label:data[0].display_name };
+            }
+
+            async function navSuggest(kind) {
+                const input = document.getElementById(kind === 'start' ? 'navStart' : 'navDestination');
+                const box = document.getElementById(kind === 'start' ? 'navStartSuggestions' : 'navDestinationSuggestions');
+                const query = input.value.trim();
+                if (query.length < 3) { box.innerHTML = ''; return; }
+
+                try {
+                    const url = `${NAV_NOMINATIM}?limit=6&country=ru&lang=${lang}&q=${encodeURIComponent(query)}`;
+                    const response = await fetch(url, { headers:{'Accept':'application/json'} });
+                    if (!response.ok) return;
+                    const data = await response.json();
+                    if (input.value.trim() !== query) return;
+                    box.innerHTML = data.map((r, i) => `
+                        <button type="button" class="nav-suggestion" data-index="${i}">
+                            <strong>${navEscape(r.name || r.display_name?.split(',')[0] || query)}</strong>
+                            <span>${navEscape(r.display_name || '')}</span>
+                        </button>`).join('');
+                    box.querySelectorAll('.nav-suggestion').forEach(btn => {
+                        btn.onclick = () => {
+                            const r = data[Number(btn.dataset.index)];
+                            const point = { lat:Number(r.lat), lng:Number(r.lon), label:r.display_name };
+                            input.value = r.display_name || r.name || query;
+                            box.innerHTML = '';
+                            if (kind === 'start') navStartPoint = point;
+                            else navDestinationPoint = point;
+                        };
+                    });
+                } catch (_) {}
+            }
+
+            function navQueueSuggestions(kind) {
+                clearTimeout(navSuggestTimers[kind]);
+                navSuggestTimers[kind] = setTimeout(() => navSuggest(kind), 350);
+            }
+
+            function navClearPickMode() {
+                navPickMode = null;
+                document.querySelectorAll('.nav-pick-btn').forEach(b => b.classList.remove('nav-picking'));
+            }
+
+            function navSetPoint(point, kind, label) {
+                const p = { lat:Number(point.lat), lng:Number(point.lng), label:label || `${Number(point.lat).toFixed(6)}, ${Number(point.lng).toFixed(6)}` };
+                if (kind === 'start') {
+                    navStartPoint = p;
+                    document.getElementById('navStart').value = p.label;
+                    document.getElementById('navStartSuggestions').innerHTML = '';
+                } else {
+                    navDestinationPoint = p;
+                    document.getElementById('navDestination').value = p.label;
+                    document.getElementById('navDestinationSuggestions').innerHTML = '';
+                }
+                navClearPickMode();
+                navSetStatus(lang === 'en' ? `${kind === 'start' ? 'Start' : 'Destination'} selected on the map.` : `${kind === 'start' ? 'Точка отправления' : 'Точка назначения'} выбрана на карте.`, 'ok');
+            }
+
+            function navHandleMapPick(latlng) {
+                if (!navPickMode) return;
+                navSetPoint({lat:latlng.lat,lng:latlng.lng}, navPickMode);
+            }
+
+            window.navSetPointAsStart = (lat,lng,label) => navSetPoint({lat,lng}, 'start', label);
+            window.navSetPointAsDestination = (lat,lng,label) => navSetPoint({lat,lng}, 'destination', label);
+
+            function navGetLocation() {
+                return new Promise((resolve, reject) => {
+                    if (!navigator.geolocation) return reject(new Error(tr('noGeo')));
+                    navigator.geolocation.getCurrentPosition(
+                        p => resolve({ lat:p.coords.latitude, lng:p.coords.longitude, label:tr('myLocation') }),
+                        e => reject(new Error(e.code === 1 ? tr('geoDenied') : tr('geoFail'))),
+                        { enableHighAccuracy:true, timeout:10000, maximumAge:30000 }
+                    );
+                });
+            }
+
+            async function navUseMyLocation() {
+                navSetStatus(tr('locating'));
+                try {
+                    navCurrentPosition = await navGetLocation();
+                    navStartPoint = navCurrentPosition;
+                    document.getElementById('navStart').value = tr('myLocation');
+                    if (map) map.setView([navCurrentPosition.lat, navCurrentPosition.lng], Math.max(map.getZoom(), 14));
+                    navSetStatus(tr('geoOk'), 'ok');
+                } catch (e) { navSetStatus(e.message, 'error'); }
+            }
+
+            async function navBuildRoute() {
+                const requestId = ++navRouteRequestId;
+                const destinationText = document.getElementById('navDestination').value.trim();
+                if (!destinationText && !navDestinationPoint) {
+                    navSetStatus(tr('enterDestination'), 'error'); return;
+                }
+
+                try {
+                    navSetStatus(tr('finding'));
+                    let start = navStartPoint || navCurrentPosition;
+                    const startText = document.getElementById('navStart').value.trim();
+                    if (!start) {
+                        if (startText && startText !== tr('myLocation') && startText !== tr('navStartHint')) {
+                            start = await navGeocode(startText);
+                            navStartPoint = start;
+                        } else {
+                            start = await navGetLocation();
+                            navCurrentPosition = start;
+                            navStartPoint = start;
+                            document.getElementById('navStart').value = tr('myLocation');
+                        }
+                    }
+
+                    const dest = navDestinationPoint || await navGeocode(destinationText);
+                    navDestinationPoint = dest;
+                    navSetStatus(tr('building'));
+
+                    const url = `${NAV_OSRM}/${start.lng},${start.lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson&steps=true&alternatives=true&annotations=false`;
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(tr('routeUnavailable'));
+                    const data = await response.json();
+                    if (requestId !== navRouteRequestId) return;
+                    if (data.code !== 'Ok' || !data.routes?.length) throw new Error(tr('routeNotFound'));
+
+                    const routes = data.routes;
+                    const ranked = routes.map(r => ({r,m:navRouteBadMetrics(r)})).sort((a,b)=>a.m.badMeters-b.m.badMeters);
+                    navRoutes.fast = routes.slice().sort((a,b)=>a.duration-b.duration)[0];
+                    navRoutes.good = ranked[0].r;
+                    navRoutes.bad = routes.slice().sort((a,b)=>b.duration-a.duration)[0];
+
+                    navActiveMode = 'fast';
+                    document.querySelectorAll('.nav-mode').forEach(b => b.classList.toggle('active', b.dataset.routeMode === navActiveMode));
+                    navDrawRoute(navRoutes.fast, navActiveMode);
+                    navShowSummary(navRoutes.fast);
+
+                    map.fitBounds(L.latLngBounds([[start.lat,start.lng],[dest.lat,dest.lng]]).pad(0.18));
+                    navSetStatus(`${tr('routeBuilt')} ${dest.label}`, 'ok');
+                } catch (e) { navSetStatus(e.message || tr('routeNotFound'), 'error'); }
+            }
+
+            function navSelectMode(mode) {
+                if (!navRoutes[mode]) return;
+                navActiveMode = mode;
+                document.querySelectorAll('.nav-mode').forEach(b => {
+                    b.classList.toggle('active', b.dataset.routeMode === mode);
+                    b.textContent = LANG[lang][mode] || b.textContent;
+                });
+                navDrawRoute(navRoutes[mode], mode);
+                navShowSummary(navRoutes[mode]);
+                const label = mode === 'good' ? tr('goodDesc') : mode === 'bad' ? tr('badDesc') : tr('fastDesc');
+                navSetStatus(label, 'ok');
+            }
+
+            function initNavigator() {
+                const go = document.getElementById('buildRouteBtn');
+                const locate = document.getElementById('locateMeBtn');
+                const useLoc = document.getElementById('useMyLocationBtn');
+                const start = document.getElementById('navStart');
+                const destination = document.getElementById('navDestination');
+                const pickStart = document.getElementById('pickStartBtn');
+                const pickDestination = document.getElementById('pickDestinationBtn');
+                if (!go) return;
+
+                go.onclick = navBuildRoute;
+                locate.onclick = navUseMyLocation;
+                useLoc.onclick = navUseMyLocation;
+
+                const wireInput = (input, kind) => {
+                    input.oninput = () => {
+                        if (kind === 'start') navStartPoint = null;
+                        else navDestinationPoint = null;
+                        navQueueSuggestions(kind);
+                    };
+                    input.onkeydown = e => {
+                        if (e.key === 'Enter') { e.preventDefault(); navBuildRoute(); }
+                        if (e.key === 'Escape') document.getElementById(kind === 'start' ? 'navStartSuggestions' : 'navDestinationSuggestions').innerHTML='';
+                    };
+                };
+                wireInput(start,'start'); wireInput(destination,'destination');
+
+                const pick = (kind, btn) => {
+                    navPickMode = navPickMode === kind ? null : kind;
+                    document.querySelectorAll('.nav-pick-btn').forEach(b => b.classList.remove('nav-picking'));
+                    if (navPickMode) btn.classList.add('nav-picking');
+                    navSetStatus(navPickMode
+                        ? (lang === 'en' ? `Click the map to choose the ${kind === 'start' ? 'start' : 'destination'} point.` : `Нажмите на карте, чтобы выбрать ${kind === 'start' ? 'точку отправления' : 'точку назначения'}.`)
+                        : '', navPickMode ? '' : '');
+                };
+                pickStart.onclick = () => pick('start', pickStart);
+                pickDestination.onclick = () => pick('destination', pickDestination);
+
+                document.querySelectorAll('.nav-mode').forEach(btn => btn.onclick = () => navSelectMode(btn.dataset.routeMode));
+            }
+
+            // ===== ЗАПУСК =====
+            document.addEventListener('DOMContentLoaded', () => {
+                initMap();
+                initNavigator();
+                updateUI();
+                applyTheme(localStorage.getItem('theme') || 'light');
+                applyLanguage(localStorage.getItem('lang') || 'ru');
+                document.querySelectorAll('.lang-btn').forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
+                loadProblems();
+                // Let the first map paint before fetching potentially large station data.
+                setTimeout(() => loadStations(true), 300);
+                setInterval(() => {
+                    if (document.hidden) return; // не тратим сеть/батарею, пока вкладка свёрнута
+                    loadProblems();
+                    loadStations(true);
+                }, REFRESH_MS);
+
+                document.querySelectorAll('.tab').forEach((btn) => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+                document.querySelectorAll('.theme-btn[data-theme]').forEach((btn) => btn.addEventListener('click', () => applyTheme(btn.dataset.theme)));
+
+                document.getElementById('submitProblem').addEventListener('click', submitProblem);
+                document.getElementById('openPickerBtn').addEventListener('click', () => openPicker('point'));
+                document.getElementById('roadModeBtn').addEventListener('click', () => openPicker('road'));
+                document.getElementById('openPickerBtnAdmin').addEventListener('click', () => openPicker('point'));
+                document.getElementById('pickerDone').addEventListener('click', confirmPicker);
+                document.getElementById('pickerCancel').addEventListener('click', () => { window.clearSelectedPoint(); closePicker(); });
+
+                document.getElementById('regButton').addEventListener('click', () => register(document.getElementById('regEmail').value.trim(), document.getElementById('regPass').value));
+                document.getElementById('loginButton').addEventListener('click', () => login(document.getElementById('regEmail').value.trim(), document.getElementById('regPass').value));
+                document.getElementById('logoutButton').addEventListener('click', logout);
+
+                document.getElementById('saveDeepseekKey').addEventListener('click', saveDeepseekKey);
+                document.getElementById('savePriceApi').addEventListener('click', savePriceApi);
+                document.getElementById('addStationBtn').addEventListener('click', addStationManually);
+
+                document.getElementById('chatSend').addEventListener('click', () => {
+                    const input = document.getElementById('chatInput');
+                    if (!input.value.trim()) return;
+                    document.getElementById('consoleMessage').innerText = '💬 Сообщение отправлено в поддержку (демо)';
+                    input.value = '';
+                });
+            });
+        })();
+        </script>
+    </body>
+</html>
