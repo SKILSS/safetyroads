@@ -240,6 +240,45 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        .file-picker {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+            padding: 7px 10px;
+            background: #101b28;
+            border: 1px solid #3e5570;
+            border-radius: 30px;
+        }
+        .file-picker .file-input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .file-picker-btn {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 7px 14px;
+            border-radius: 22px;
+            background: #eef2f7;
+            color: #111820;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .file-picker-btn:hover { opacity: .9; }
+        .file-picker-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #d7e1ec;
+            font-weight: 600;
+        }
         .file-input {
             padding: 6px 10px;
             background: #101b28;
@@ -520,6 +559,17 @@
             background: #3a6ea5 !important;
             color: #fff !important;
         }
+        body.light .add-form .file-picker {
+            background: #f7f9fb;
+            border-color: #cbd5df;
+        }
+        body.light .add-form .file-picker-btn {
+            background: #e8edf3;
+            color: #111820;
+        }
+        body.light .add-form .file-picker-name {
+            color: #314255;
+        }
         body.light .add-form .file-input {
             background: #f7f9fb;
             color: #314255;
@@ -748,22 +798,29 @@
         body.light .nav-status.ok { color:#237a57; }
 
         .nav-pick-btn { border:1px dashed #70839a; }
+        .nav-input-wrap { position:relative; flex:1; min-width:0; }
+        .nav-input-wrap input { width:100%; box-sizing:border-box; }
         .nav-suggestions {
-            position:relative;
-            z-index:1200;
-            margin:4px 0 4px 19px;
-            max-width:calc(100% - 19px);
+            position:absolute; left:0; right:0; top:calc(100% + 5px); z-index:5000;
+            margin:0; max-width:none; max-height:260px; overflow-y:auto;
+            border-radius:12px; box-shadow:0 10px 28px rgba(0,0,0,.28);
         }
         .nav-suggestion {
-            display:flex; flex-direction:column; gap:2px; width:100%;
-            text-align:left; border:1px solid #31445c; border-top:0;
-            background:#101b28; color:#e8edf5; padding:9px 11px; cursor:pointer;
+            display:flex; flex-direction:column; gap:3px; width:100%; box-sizing:border-box;
+            text-align:left; border:1px solid #31445c; border-bottom:0;
+            background:#101b28; color:#e8edf5; padding:11px 12px; cursor:pointer; font:inherit;
         }
-        .nav-suggestion:first-child { border-top:1px solid #31445c; border-radius:10px 10px 0 0; }
-        .nav-suggestion:last-child { border-radius:0 0 10px 10px; }
-        .nav-suggestion strong { font-size:.76rem; }
-        .nav-suggestion span { font-size:.66rem; color:#8da1bb; }
-        body.light .nav-suggestion { background:#fff; color:#1b2430; border-color:#d6dee7; }
+        .nav-suggestion:first-child { border-radius:12px 12px 0 0; }
+        .nav-suggestion:last-child { border-bottom:1px solid #31445c; border-radius:0 0 12px 12px; }
+        .nav-suggestion:hover, .nav-suggestion:focus { background:#26344a; outline:none; }
+        .nav-suggestion strong { font-size:.78rem; line-height:1.2; }
+        .nav-suggestion span { font-size:.67rem; line-height:1.25; color:#8da1bb; }
+        .nav-suggestion-loading, .nav-suggestion-empty {
+            padding:11px 12px; border:1px solid #31445c; border-radius:12px;
+            background:#101b28; color:#9aafcc; font-size:.72rem;
+        }
+        body.light .nav-suggestion, body.light .nav-suggestion-loading, body.light .nav-suggestion-empty { background:#fff; color:#1b2430; border-color:#d6dee7; }
+        body.light .nav-suggestion:hover, body.light .nav-suggestion:focus { background:#f0f4f8; }
         body.light .nav-suggestion span { color:#718092; }
         .nav-picking { outline:2px solid #f5a623; outline-offset:2px; }
         .station-price-pin { min-width:42px; }
@@ -821,21 +878,25 @@
 
                     <div class="nav-input-row">
                         <div class="nav-dot nav-dot-start" aria-hidden="true"></div>
-                        <input id="navStart" type="text" placeholder="Моё местоположение" autocomplete="off" />
+                        <div class="nav-input-wrap">
+                            <input id="navStart" type="text" placeholder="Моё местоположение" autocomplete="off" />
+                            <div id="navStartSuggestions" class="nav-suggestions" aria-live="polite"></div>
+                        </div>
                         <button id="pickStartBtn" type="button" class="nav-small-btn nav-pick-btn">📍 На карте</button>
                         <button id="useMyLocationBtn" type="button" class="nav-small-btn">Моя геолокация</button>
                     </div>
-                    <div id="navStartSuggestions" class="nav-suggestions"></div>
 
                     <div class="nav-line"></div>
 
                     <div class="nav-input-row">
                         <div class="nav-dot nav-dot-end" aria-hidden="true"></div>
-                        <input id="navDestination" type="text" placeholder="Куда ехать? Например: Казань, Кремль" autocomplete="off" />
+                        <div class="nav-input-wrap">
+                            <input id="navDestination" type="text" placeholder="Куда ехать? Например: Казань, Кремль" autocomplete="off" />
+                            <div id="navDestinationSuggestions" class="nav-suggestions" aria-live="polite"></div>
+                        </div>
                         <button id="pickDestinationBtn" type="button" class="nav-small-btn nav-pick-btn">📍 На карте</button>
                         <button id="buildRouteBtn" type="button" class="nav-go-btn">Поехали</button>
                     </div>
-                    <div id="navDestinationSuggestions" class="nav-suggestions"></div>
 
                     <div id="navStatus" class="nav-status">Введите адрес назначения и нажмите «Поехали».</div>
 
@@ -899,7 +960,11 @@
                     <input type="hidden" id="problemLng" />
                     <button type="button" id="openPickerBtn" style="background:#3a6ea5;color:#fff;">📍 Choose location on map</button>
                     <button type="button" id="roadModeBtn" style="background:#26344a;color:#f5c542;">🚧 Mark the whole road (multiple points)</button>
-                    <input type="file" id="problemFile" accept="image/*" class="file-input" />
+                    <div class="file-picker" id="problemFilePicker">
+                        <input type="file" id="problemFile" accept="image/*" class="file-input" />
+                        <label for="problemFile" class="file-picker-btn" id="problemFileButton">📷 Choose file</label>
+                        <span class="file-picker-name" id="problemFileName">No file chosen</span>
+                    </div>
                     <button id="submitProblem">Отправить на проверку</button>
                     <div id="problemHelpText" style="font-size:0.7rem;color:#7e92b0;margin-top:6px;">
                         🤖 ИИ проверит фото (если загружено) • <span id="problemHelpPick" style="color:#f5a623;">📍 Choose location on map</span> to set coordinates
@@ -1020,6 +1085,8 @@
             let lastProblemsSignature = '';
             let lastStationsSignature = '';
             let lastStationsQuery = '';
+            let mapTileLayer = null;
+            let miniMapTileLayer = null;
             let stationsLoadInFlight = null;
             let selectedPoint = null;
             let selectedMarker = null;
@@ -1044,7 +1111,7 @@
                     geoDenied:'Разрешите доступ к геолокации в настройках браузера.',
                     geoFail:'Не удалось определить местоположение.',
                     noGeo:'Браузер не поддерживает геолокацию.',
-                    finding:'Ищем адрес…', addressNotFound:'Адрес не найден. Попробуйте указать город и улицу.',
+                    finding:'Ищем адрес…', addressNotFound:'Адрес не найден. Попробуйте указать город и улицу.', findingSuggestions:'Ищем варианты адреса…', suggestionsEmpty:'Варианты адреса не найдены.', suggestionsUnavailable:'Не удалось загрузить подсказки. Попробуйте ещё раз.',
                     building:'Строим маршрут и проверяем отмеченные проблемы…', routeBuilt:'Маршрут построен до:',
                     routeUnavailable:'Сервис маршрутизации временно недоступен.', routeNotFound:'Маршрут не найден.',
                     enterDestination:'Введите адрес назначения.', geocodeFail:'Не удалось найти адрес',
@@ -1070,6 +1137,7 @@
                     serverPriceNote:'Сервер автоматически использует открытые агрегированные данные «Ехай» как ориентир и, если настроен, точные данные станционного провайдера (например, Benzup). Точные цены помечаются отдельно от медианных. Синхронизация выполняется автоматически каждый час.',
                     addStation:'➕ Добавить АЗС в выбранной точке',
                     problem:'➕ Сообщить о проблеме', choose:'📍 Выбрать место на карте',
+                    fileChoose:'📷 Выбрать файл', fileNone:'Файл не выбран',
                     markRoad:'🚧 Отметить всю дорогу (несколько точек)',
                     submit:'Отправить на проверку', noProblems:'Проблем пока нет',
                     settingsAdmin:'🛠 Админ-панель', deepseek:'🤖 Ключ DeepSeek (проверка фото ИИ)',
@@ -1094,7 +1162,7 @@
                     geoDenied:'Allow location access in your browser settings.',
                     geoFail:'Could not determine your location.',
                     noGeo:'This browser does not support geolocation.',
-                    finding:'Finding address…', addressNotFound:'Address not found. Try adding the city and street.',
+                    finding:'Finding address…', addressNotFound:'Address not found. Try adding the city and street.', findingSuggestions:'Finding address suggestions…', suggestionsEmpty:'No address suggestions found.', suggestionsUnavailable:'Could not load suggestions. Please try again.',
                     building:'Building the route and checking reported road problems…', routeBuilt:'Route built to:',
                     routeUnavailable:'Routing service is temporarily unavailable.', routeNotFound:'Route not found.',
                     enterDestination:'Enter a destination.', geocodeFail:'Could not find the address',
@@ -1120,6 +1188,7 @@
                     serverPriceNote:'The server automatically uses open aggregated “Ехай” data as an estimate and, when configured, exact data from the station-price provider (for example, Benzup). Exact prices are marked separately from median estimates. Synchronization runs automatically every hour.',
                     addStation:'➕ Add a gas station at the selected point',
                     problem:'➕ Report a problem', choose:'📍 Choose location on map',
+                    fileChoose:'📷 Choose file', fileNone:'No file chosen',
                     markRoad:'🚧 Mark the whole road (multiple points)',
                     submit:'Submit for review', noProblems:'No problems yet',
                     settingsAdmin:'🛠 Admin panel', deepseek:'🤖 DeepSeek key (AI photo review)',
@@ -1137,11 +1206,42 @@
             let lang = localStorage.getItem('lang') || 'ru';
             const tr = (key) => (LANG[lang] && LANG[lang][key]) || key;
 
+            const REGION_EN = {
+                'Бурятия':'Buryatia','Карачаево-Черкесская республика':'Karachay-Cherkessia','Сахалинская область':'Sakhalin Oblast',
+                'Воронежская область':'Voronezh Oblast','Томская область':'Tomsk Oblast','Новосибирская область':'Novosibirsk Oblast',
+                'Ненецкий автономный округ':'Nenets Autonomous Okrug','Магаданская область':'Magadan Oblast','Камчатский край':'Kamchatka Krai',
+                'Приморский край':'Primorsky Krai','Ставропольский край':'Stavropol Krai','Алтайский край':'Altai Krai','Москва':'Moscow',
+                'Тыва':'Tuva','Тамбовская область':'Tambov Oblast','Свердловская область':'Sverdlovsk Oblast',
+                'Ханты-Мансийский автономный округ - Югра':'Khanty-Mansi Autonomous Okrug – Yugra','Чукотский автономный округ':'Chukotka Autonomous Okrug',
+                'Тюменская область':'Tyumen Oblast','Владимирская область':'Vladimir Oblast','Московская область':'Moscow Oblast',
+                'Волгоградская область':'Volgograd Oblast','Оренбургская область':'Orenburg Oblast','Самарская область':'Samara Oblast',
+                'Астраханская область':'Astrakhan Oblast','Адыгея':'Adygea','Республика Калмыкия':'Kalmykia','Краснодарский край':'Krasnodar Krai',
+                'Ростовская область':'Rostov Oblast','Мурманская область':'Murmansk Oblast','Псковская область':'Pskov Oblast',
+                'Санкт-Петербург':'Saint Petersburg','Ленинградская область':'Leningrad Oblast','Республика Мордовия':'Mordovia',
+                'Татарстан':'Tatarstan','Кировская область':'Kirov Oblast','Костромская область':'Kostroma Oblast','Тверская область':'Tver Oblast',
+                'Тульская область':'Tula Oblast','Калужская область':'Kaluga Oblast','Ульяновская область':'Ulyanovsk Oblast','Марий Эл':'Mari El',
+                'Смоленская область':'Smolensk Oblast','Пермский край':'Perm Krai','Ивановская область':'Ivanovo Oblast','Чувашия':'Chuvashia',
+                'Северная Осетия - Алания':'North Ossetia–Alania','Брянская область':'Bryansk Oblast','Пензенская область':'Penza Oblast',
+                'Белгородская область':'Belgorod Oblast','Липецкая область':'Lipetsk Oblast','Новгородская область':'Novgorod Oblast',
+                'Архангельская область':'Arkhangelsk Oblast','Нижегородская область':'Nizhny Novgorod Oblast','Курганская область':'Kurgan Oblast',
+                'Курская область':'Kursk Oblast','Забайкальский край':'Zabaykalsky Krai','Алтай':'Altai Republic','Рязанская область':'Ryazan Oblast',
+                'Ямало-Ненецкий автономный округ':'Yamalo-Nenets Autonomous Okrug','Красноярский край':'Krasnoyarsk Krai',
+                'Республика Саха (Якутия)':'Sakha (Yakutia) Republic','Дагестан':'Dagestan','Омская область':'Omsk Oblast','Республика Коми':'Komi Republic',
+                'Чеченская республика':'Chechnya','Кабардино-Балкарская республика':'Kabardino-Balkaria','Саратовская область':'Saratov Oblast',
+                'Калининградская область':'Kaliningrad Oblast','Орловская область':'Oryol Oblast','Республика Карелия':'Republic of Karelia',
+                'Иркутская область':'Irkutsk Oblast','Амурская область':'Amur Oblast','Еврейская автономная область':'Jewish Autonomous Oblast',
+                'Хабаровский край':'Khabarovsk Krai','Кемеровская область':'Kemerovo Oblast','Республика Хакасия':'Khakassia',
+                'Ярославская область':'Yaroslavl Oblast','Удмуртская республика':'Udmurt Republic','Вологодская область':'Vologda Oblast',
+                'Ингушетия':'Ingushetia','Челябинская область':'Chelyabinsk Oblast','Башкортостан':'Bashkortostan'
+            };
+            const displayRegion = (name) => lang === 'en' ? (REGION_EN[name] || name) : name;
+
             function applyLanguage(next) {
                 lang = next === 'en' ? 'en' : 'ru';
                 localStorage.setItem('lang', lang);
                 document.documentElement.lang = lang;
                 const s = LANG[lang];
+                updateMapTileLanguage();
 
                 const tabLabels = {
                     map: document.querySelector('[data-tab="map"]'),
@@ -1185,6 +1285,10 @@
                 document.querySelectorAll('#problemCategory option').forEach((option) => {
                     if (categoryOptions[option.value]) option.textContent = categoryOptions[option.value];
                 });
+                setText('problemFileButton', s.fileChoose);
+                const fileInput = document.getElementById('problemFile');
+                const fileName = document.getElementById('problemFileName');
+                if (fileName && fileInput && !fileInput.files.length) fileName.textContent = s.fileNone;
                 setText('selectedCoordsLabel', s.location);
                 setText('problemHelpText', s.aiHelp + ' ');
                 const helpPick = document.getElementById('problemHelpPick'); if (helpPick) { helpPick.textContent = s.choose; }
@@ -1234,11 +1338,40 @@
                 return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
             }
 
+            // ===== ЯЗЫК ПОДЛОЖКИ КАРТЫ =====
+            // OSM is used for Russian; the Esri street map provides English labels
+            // when the site is switched to English.
+            function mapTileConfig() {
+                if (lang === 'en') {
+                    return {
+                        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+                        attribution: 'Tiles © Esri'
+                    };
+                }
+                return {
+                    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    attribution: '© OpenStreetMap contributors'
+                };
+            }
+
+            function updateMapTileLanguage() {
+                const cfg = mapTileConfig();
+                if (map) {
+                    if (mapTileLayer) map.removeLayer(mapTileLayer);
+                    mapTileLayer = L.tileLayer(cfg.url, { attribution: cfg.attribution, maxZoom: 19 }).addTo(map);
+                }
+                if (miniMap) {
+                    if (miniMapTileLayer) miniMap.removeLayer(miniMapTileLayer);
+                    miniMapTileLayer = L.tileLayer(cfg.url, { maxZoom: 19 }).addTo(miniMap);
+                }
+            }
+
             // ===== ИНИЦИАЛИЗАЦИЯ ОСНОВНОЙ КАРТЫ (только просмотр) =====
             function initMap() {
                 map = L.map('map', { preferCanvas: true, zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false }).setView([55.76, 37.64], 11);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap contributors',
+                const tileCfg = mapTileConfig();
+                mapTileLayer = L.tileLayer(tileCfg.url, {
+                    attribution: tileCfg.attribution,
                     maxZoom: 19,
                 }).addTo(map);
                 map.attributionControl.setPrefix(false); // remove the default Leaflet flag icon + link
@@ -1267,7 +1400,8 @@
                     map ? map.getCenter() : [55.76, 37.64],
                     map ? map.getZoom() : 11
                 );
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(miniMap);
+                const tileCfg = mapTileConfig();
+                miniMapTileLayer = L.tileLayer(tileCfg.url, { maxZoom: 19 }).addTo(miniMap);
 
                 miniMap.on('click', function(e) {
                     if (roadMode) {
@@ -1499,7 +1633,7 @@
                         if (p.status === 'rejected') return;
                         if (p.is_road && Array.isArray(p.route) && p.route.length >= 2) {
                             const line = L.polyline(p.route, { color: '#e53935', weight: 7, opacity: 0.82, interactive: true });
-                            line.bindPopup(`<b>🚧 ${navEscape(lang === 'en' ? (p.title_en || p.title_ru || 'Bad road') : (p.title_ru || 'Плохая дорога'))}</b><br/>📍 ${navEscape(p.region || '')}<br/>📊 ${statusLabel(p.status)}
+                            line.bindPopup(`<b>🚧 ${navEscape(lang === 'en' ? (p.title_en || p.title_ru || 'Bad road') : (p.title_ru || 'Плохая дорога'))}</b><br/>📍 ${navEscape(displayRegion(p.region || ''))}<br/>📊 ${statusLabel(p.status)}
                             <div class="station-actions">
                                 <button onclick="window.navSetPointAsStart(${Number(p.lat || p.route?.[0]?.[0] || 0)},${Number(p.lng || p.route?.[0]?.[1] || 0)},${JSON.stringify(p.region || '')})">${tr('from')}</button>
                             </div>`);
@@ -1507,7 +1641,7 @@
                         } else if (p.lat != null && p.lng != null) {
                             const marker = L.marker([p.lat, p.lng], { icon: problemIcon() });
                             const problemTitle = lang === 'en' ? (p.title_en || p.title_ru || 'Untitled') : (p.title_ru || 'Без названия');
-                            marker.bindPopup(`<b>${navEscape(problemTitle)}</b><br/>📍 ${navEscape(p.region || (lang === 'en' ? 'Not specified' : 'Не указан'))}<br/>🏷 ${categoryLabel(p.category)}<br/>📊 ${statusLabel(p.status)}${p.created_at ? `<br/>🕐 ${new Date(p.created_at).toLocaleDateString(lang === 'en' ? 'en-GB' : 'ru-RU')}` : ''}${p.ai_verdict ? `<br/><span style="color:#4caf50">🤖 ${navEscape(p.ai_verdict)}</span>` : ''}
+                            marker.bindPopup(`<b>${navEscape(problemTitle)}</b><br/>📍 ${navEscape(displayRegion(p.region || (lang === 'en' ? 'Not specified' : 'Не указан')))}<br/>🏷 ${categoryLabel(p.category)}<br/>📊 ${statusLabel(p.status)}${p.created_at ? `<br/>🕐 ${new Date(p.created_at).toLocaleDateString(lang === 'en' ? 'en-GB' : 'ru-RU')}` : ''}${p.ai_verdict ? `<br/><span style="color:#4caf50">🤖 ${navEscape(p.ai_verdict)}</span>` : ''}
                                 <div class="station-actions">
                                     <button onclick="window.navSetPointAsStart(${Number(p.lat)},${Number(p.lng)},${JSON.stringify(problemTitle)})">${tr('from')}</button>
                                     <button onclick="window.navSetPointAsDestination(${Number(p.lat)},${Number(p.lng)},${JSON.stringify(problemTitle)})">${tr('to')}</button>
@@ -1556,7 +1690,7 @@
                     div.innerHTML=`
                         <div class="title"><span>${navEscape(title)}</span><span class="${badgeClass}">${statusLabel(status)}</span></div>
                         <div class="meta">
-                            <span>📍 ${navEscape(p.region || (lang==='en'?'Not specified':'Не указан'))}</span>
+                            <span>📍 ${navEscape(displayRegion(p.region || (lang==='en'?'Not specified':'Не указан')))}</span>
                             <span>📂 ${categoryLabel(p.category)}</span>
                             ${p.created_at?`<span>🕐 ${new Date(p.created_at).toLocaleDateString(lang==='en'?'en-GB':'ru-RU')}</span>`:''}
                         </div>
@@ -1617,6 +1751,8 @@
                     window.clearSelectedPoint();
                     document.getElementById('problemTitle').value = '';
                     document.getElementById('problemFile').value = '';
+                    const resetFileName = document.getElementById('problemFileName');
+                    if (resetFileName) resetFileName.textContent = LANG[lang].fileNone;
                 } catch (err) {
                     alert('Ошибка при добавлении: ' + err.message);
                 } finally {
@@ -1747,6 +1883,8 @@
             let navPickMode = null; // 'start' | 'destination' | null
             let navRouteRequestId = 0;
             let navSuggestTimers = { start: null, destination: null };
+            let navSuggestControllers = { start: null, destination: null };
+            const navSuggestCache = new Map();
 
             function navSetStatus(text, type = '') {
                 const el = document.getElementById('navStatus');
@@ -1759,6 +1897,22 @@
                 return String(value ?? '').replace(/[&<>"']/g, ch => ({
                     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
                 }[ch]));
+            }
+
+            // Расстояние между двумя точками [lat, lng] по формуле Haversine.
+            // Нужна навигатору для оценки участков дороги с отмеченными проблемами.
+            function navHaversine(a, b) {
+                if (!Array.isArray(a) || !Array.isArray(b) || a.length < 2 || b.length < 2) return Infinity;
+                const R = 6371000;
+                const toRad = deg => deg * Math.PI / 180;
+                const dLat = toRad(Number(b[0]) - Number(a[0]));
+                const dLng = toRad(Number(b[1]) - Number(a[1]));
+                const lat1 = toRad(Number(a[0]));
+                const lat2 = toRad(Number(b[0]));
+                const sinLat = Math.sin(dLat / 2);
+                const sinLng = Math.sin(dLng / 2);
+                const h = sinLat * sinLat + Math.cos(lat1) * Math.cos(lat2) * sinLng * sinLng;
+                return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)));
             }
 
             function navFormatDistance(meters) {
@@ -1954,31 +2108,48 @@
             async function navSuggest(kind) {
                 const input = document.getElementById(kind === 'start' ? 'navStart' : 'navDestination');
                 const box = document.getElementById(kind === 'start' ? 'navStartSuggestions' : 'navDestinationSuggestions');
+                if (!input || !box) return;
                 const query = input.value.trim();
-                if (query.length < 3) { box.innerHTML = ''; return; }
-
+                if (query.length < 2) { box.innerHTML = ''; return; }
+                const cacheKey = `${lang}|${query.toLowerCase()}`;
+                if (navSuggestCache.has(cacheKey)) { navRenderSuggestions(kind, query, navSuggestCache.get(cacheKey)); return; }
+                if (navSuggestControllers[kind]) navSuggestControllers[kind].abort();
+                const controller = new AbortController();
+                navSuggestControllers[kind] = controller;
+                box.innerHTML = `<div class="nav-suggestion-loading">${navEscape(tr('findingSuggestions'))}</div>`;
                 try {
                     const url = `${NAV_NOMINATIM}?limit=6&country=ru&lang=${lang}&q=${encodeURIComponent(query)}`;
-                    const response = await fetch(url, { headers:{'Accept':'application/json'} });
-                    if (!response.ok) return;
+                    const response = await fetch(url, { headers:{'Accept':'application/json'}, signal:controller.signal });
+                    if (!response.ok) throw new Error('suggestions');
                     const data = await response.json();
                     if (input.value.trim() !== query) return;
-                    box.innerHTML = data.map((r, i) => `
-                        <button type="button" class="nav-suggestion" data-index="${i}">
-                            <strong>${navEscape(r.name || r.display_name?.split(',')[0] || query)}</strong>
-                            <span>${navEscape(r.display_name || '')}</span>
-                        </button>`).join('');
-                    box.querySelectorAll('.nav-suggestion').forEach(btn => {
-                        btn.onclick = () => {
-                            const r = data[Number(btn.dataset.index)];
-                            const point = { lat:Number(r.lat), lng:Number(r.lon), label:r.display_name };
-                            input.value = r.display_name || r.name || query;
-                            box.innerHTML = '';
-                            if (kind === 'start') navStartPoint = point;
-                            else navDestinationPoint = point;
-                        };
-                    });
-                } catch (_) {}
+                    const results = Array.isArray(data) ? data : [];
+                    navSuggestCache.set(cacheKey, results);
+                    navRenderSuggestions(kind, query, results);
+                } catch (e) {
+                    if (e.name === 'AbortError') return;
+                    if (input.value.trim() === query) box.innerHTML = `<div class="nav-suggestion-empty">${navEscape(tr('suggestionsUnavailable'))}</div>`;
+                }
+            }
+
+            function navRenderSuggestions(kind, query, data) {
+                const input = document.getElementById(kind === 'start' ? 'navStart' : 'navDestination');
+                const box = document.getElementById(kind === 'start' ? 'navStartSuggestions' : 'navDestinationSuggestions');
+                if (!input || !box || input.value.trim() !== query) return;
+                if (!data.length) {
+                    box.innerHTML = `<div class="nav-suggestion-empty">${navEscape(tr('suggestionsEmpty'))}</div>`;
+                    return;
+                }
+                box.innerHTML = data.map((r, i) => `<button type="button" class="nav-suggestion" data-index="${i}"><strong>${navEscape(r.name || r.display_name?.split(',')[0] || query)}</strong><span>${navEscape(r.display_name || '')}</span></button>`).join('');
+                box.querySelectorAll('.nav-suggestion').forEach(btn => {
+                    btn.onclick = () => {
+                        const r = data[Number(btn.dataset.index)];
+                        const point = { lat:Number(r.lat), lng:Number(r.lon), label:r.display_name || r.name || query };
+                        input.value = point.label;
+                        box.innerHTML = '';
+                        if (kind === 'start') navStartPoint = point; else navDestinationPoint = point;
+                    };
+                });
             }
 
             function navQueueSuggestions(kind) {
@@ -2159,6 +2330,12 @@
 
                 document.querySelectorAll('.tab').forEach((btn) => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
                 document.querySelectorAll('.theme-btn[data-theme]').forEach((btn) => btn.addEventListener('click', () => applyTheme(btn.dataset.theme)));
+
+                const problemFile = document.getElementById('problemFile');
+                problemFile.addEventListener('change', () => {
+                    const name = document.getElementById('problemFileName');
+                    if (name) name.textContent = problemFile.files[0]?.name || LANG[lang].fileNone;
+                });
 
                 document.getElementById('submitProblem').addEventListener('click', submitProblem);
                 document.getElementById('openPickerBtn').addEventListener('click', () => openPicker('point'));
