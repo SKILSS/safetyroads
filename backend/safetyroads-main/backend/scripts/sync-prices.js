@@ -15,12 +15,12 @@
 //      provider returns (this script guesses a few common ones, but every
 //      provider's JSON shape is different).
 //
-// This does NOT run on its own — nothing in this project has a live server
-// that executes scheduled jobs for you. Run it yourself:
-//   - by hand:      node backend/scripts/sync-prices.js
-//   - on a schedule: a cron job on your host, a Render/Railway "Cron Job",
-//     or a scheduled GitHub Action that runs this and exits. Every 1-4
-//     hours is plenty for retail fuel prices.
+// This now runs automatically every 24 hours as long as the backend server
+// is running (see server.js, which calls syncPrices() on startup and then
+// on a 24h setInterval). You can still run it by hand at any time:
+//   node backend/scripts/sync-prices.js
+// or on your own external schedule (cron, Render Cron Job, GitHub Action) —
+// running it more than once in the same day is harmless, just wasted calls.
 //
 // Matching a provider's stations to the ones already in gas_stations (added
 // by scripts/sync-stations.js from OpenStreetMap) is done by nearest
@@ -58,22 +58,23 @@ function extractStations(payload) {
   })).filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng));
 }
 
-// Reusable entry point (used by both the CLI below and server.js's automatic
-// 24h scheduler). Does NOT close the pool — the caller owns that.
+// Does the actual sync. Never closes the pool — callers own the pool's
+// lifecycle (the server keeps it open for the life of the process; the CLI
+// entrypoint below closes it after this resolves).
 async function syncPrices() {
   const settings = (await pool.query("SELECT price_api_key, price_api_url FROM app_settings WHERE id = 1")).rows[0];
   if (!settings?.price_api_url || !settings?.price_api_key) {
-    console.log("No price provider configured yet (Settings > Admin panel). Nothing to sync — exiting.");
-    return;
+    console.log("[sync-prices] No price provider configured yet (Settings > Admin panel). Nothing to sync.");
+    return { skipped: true };
   }
 
-  console.log(`Fetching prices from ${settings.price_api_url} ...`);
+  console.log(`[sync-prices] Fetching prices from ${settings.price_api_url} ...`);
   const res = await fetch(settings.price_api_url, {
     headers: { Authorization: `Bearer ${settings.price_api_key}` },
   });
   if (!res.ok) throw new Error(`Provider request failed: ${res.status}`);
   const providerStations = extractStations(await res.json());
-  console.log(`Got ${providerStations.length} stations with prices from the provider.`);
+  console.log(`[sync-prices] Got ${providerStations.length} stations with prices from the provider.`);
 
   const existing = (await pool.query("SELECT id, lat, lng FROM gas_stations")).rows;
   let matched = 0;
@@ -98,18 +99,19 @@ async function syncPrices() {
       );
     }
   }
-  console.log(`Updated ${matched} existing stations, inserted ${providerStations.length - matched} new ones.`);
+  console.log(`[sync-prices] Updated ${matched} existing stations, inserted ${providerStations.length - matched} new ones.`);
+  return { matched, inserted: providerStations.length - matched };
 }
 
 module.exports = { syncPrices };
 
-// Only run as a standalone script (and close the pool) when invoked directly
-// via `node scripts/sync-prices.js`, not when required by server.js.
+// Only run as a one-off CLI script when invoked directly (`node sync-prices.js`),
+// not when required by server.js for the scheduled 24h sync.
 if (require.main === module) {
   syncPrices()
-    .then(() => pool.end())
     .catch((err) => {
       console.error("sync-prices failed:", err);
-      process.exit(1);
-    });
+      process.exitCode = 1;
+    })
+    .finally(() => pool.end());
 }
