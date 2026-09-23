@@ -209,3 +209,22 @@ textarea, select, input[type="text"], input[type="password"] {
 .chat-input-row { border-top: 1px solid var(--border); padding: 8px; display: flex; gap: 8px; }
 .chat-input-row input { margin: 0; flex: 1; font-size: 12px; padding: 6px 8px; }
 .chat-input-row button { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 16px; }
+
+/* SafetyRoad v7 additions: voice guidance + swipe-to-withdraw */
+.voice-toggle { border:1px solid #3e5570; border-radius:30px; padding:7px 13px; background:#182535; color:#dce6f0; cursor:pointer; }
+.voice-toggle.on { background:#f5a623; color:#111; }
+.problem-swipe-wrap { position:relative; overflow:hidden; border-radius:14px; margin-bottom:12px; }
+.problem-swipe-wrap .problem-item { margin-bottom:0; position:relative; z-index:2; transition:transform .18s ease; }
+.swipe-delete-action { position:absolute; inset:0 0 0 auto; width:92px; display:flex; align-items:center; justify-content:center; background:#c43d3d; color:#fff; font-weight:800; cursor:pointer; }
+.swipe-hint { font-size:.65rem; color:#7188a3; margin-top:7px; }
+.withdraw-overlay { position:fixed; inset:0; background:rgba(0,0,0,.62); display:none; align-items:center; justify-content:center; z-index:10000; padding:20px; }
+.withdraw-overlay.open { display:flex; }
+.withdraw-modal { width:min(360px,92vw); background:#172232; color:#e8edf5; border:1px solid #34465d; border-radius:18px; padding:22px; box-shadow:0 18px 60px rgba(0,0,0,.45); text-align:center; }
+.withdraw-icon { width:42px; height:42px; border-radius:50%; margin:0 auto 12px; display:flex; align-items:center; justify-content:center; background:#5b2525; color:#ff9d9d; font-weight:800; }
+.withdraw-modal h4 { font-size:1rem; margin-bottom:8px; }
+.withdraw-modal p { font-size:.78rem; color:#9aafcc; line-height:1.45; margin-bottom:16px; }
+.withdraw-actions { display:flex; gap:8px; }
+.withdraw-actions button { flex:1; border:0; border-radius:10px; padding:10px; cursor:pointer; font-weight:700; background:#304157; color:#fff; }
+.withdraw-actions button.danger { background:#c43d3d; }
+.ai-chat-output { margin-top:8px; padding:9px 11px; border-radius:10px; background:#172232; color:#b9c8da; font-size:.75rem; line-height:1.45; min-height:36px; }
+.nav-head-actions { display:flex; gap:6px; }

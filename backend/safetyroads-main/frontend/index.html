@@ -675,6 +675,24 @@
         }
         .navigator-title { font-size:1.05rem; font-weight:800; }
         .navigator-subtitle { font-size:.72rem; color:#7e92b0; margin-top:3px; }
+        .nav-head-actions { display:flex; gap:6px; }
+        .voice-toggle { border:1px solid #3e5570; border-radius:30px; padding:7px 13px; background:#182535; color:#dce6f0; cursor:pointer; font-weight:700; }
+        .voice-toggle.on { background:#f5a623; color:#111; }
+        .problem-swipe-wrap { position:relative; overflow:hidden; border-radius:14px; margin-bottom:12px; }
+        .problem-swipe-wrap .problem-item { margin-bottom:0; position:relative; z-index:2; transition:transform .18s ease; touch-action:pan-y; }
+        .problem-swipe-wrap .problem-content { min-width:0; }
+        .swipe-delete-action { position:absolute; inset:0 0 0 auto; width:92px; display:flex; align-items:center; justify-content:center; background:#c43d3d; color:#fff; font-weight:800; cursor:pointer; }
+        .swipe-hint { font-size:.65rem; color:#7188a3; margin-top:7px; }
+        .withdraw-overlay { position:fixed; inset:0; background:rgba(0,0,0,.62); display:none; align-items:center; justify-content:center; z-index:10000; padding:20px; }
+        .withdraw-overlay.open { display:flex; }
+        .withdraw-modal { width:min(360px,92vw); background:#172232; color:#e8edf5; border:1px solid #34465d; border-radius:18px; padding:22px; box-shadow:0 18px 60px rgba(0,0,0,.45); text-align:center; }
+        .withdraw-icon { width:42px; height:42px; border-radius:50%; margin:0 auto 12px; display:flex; align-items:center; justify-content:center; background:#5b2525; color:#ff9d9d; font-weight:800; }
+        .withdraw-modal h4 { font-size:1rem; margin-bottom:8px; }
+        .withdraw-modal p { font-size:.78rem; color:#9aafcc; line-height:1.45; margin-bottom:16px; }
+        .withdraw-actions { display:flex; gap:8px; }
+        .withdraw-actions button { flex:1; border:0; border-radius:10px; padding:10px; cursor:pointer; font-weight:700; background:#304157; color:#fff; }
+        .withdraw-actions button.danger { background:#c43d3d; }
+        .ai-chat-output { margin-top:8px; padding:9px 11px; border-radius:10px; background:#172232; color:#b9c8da; font-size:.75rem; line-height:1.45; min-height:36px; }
         .nav-icon-btn, .nav-small-btn, .nav-go-btn {
             border:0;
             border-radius:12px;
@@ -873,7 +891,10 @@
                             <div class="navigator-title" id="navTitle">🧭 Навигатор</div>
                             <div class="navigator-subtitle" id="navSubtitle">Маршрут с учётом состояния дорог</div>
                         </div>
-                        <button id="locateMeBtn" class="nav-icon-btn" type="button" title="Моё местоположение" aria-label="Моё местоположение">📍</button>
+                        <div class="nav-head-actions">
+                            <button id="voiceGuidanceBtn" class="nav-icon-btn" type="button" title="Голосовое сопровождение" aria-label="Голосовое сопровождение">🔇</button>
+                            <button id="locateMeBtn" class="nav-icon-btn" type="button" title="Моё местоположение" aria-label="Моё местоположение">📍</button>
+                        </div>
                     </div>
 
                     <div class="nav-input-row">
@@ -989,6 +1010,10 @@
                             <button class="theme-btn lang-btn" data-lang="en" type="button">English</button>
                         </div>
                     </div>
+                    <div class="settings-row">
+                        <span id="voiceGuidanceLabel">🔊 Голосовое сопровождение</span>
+                        <button id="voiceGuidanceToggle" class="voice-toggle" type="button" aria-pressed="false">🔇 Выкл.</button>
+                    </div>
                 </div>
 
                 <div class="settings-card">
@@ -998,6 +1023,7 @@
                             <input type="text" placeholder="Напишите..." id="chatInput" />
                             <span id="chatSend">➤</span>
                         </div>
+                        <div id="aiChatOutput" class="ai-chat-output">🤖 ${lang === 'en' ? 'AI assistant is ready.' : '🤖 ИИ-помощник готов.'}</div>
                     </div>
                 </div>
 
@@ -1041,6 +1067,19 @@
                     ⚙️ Console: <span id="consoleMessage">Система готова</span>
                 </div>
                 <div class="footer">SafetyRoad — данные обновляются 24/7</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== МОДАЛКА ПОДТВЕРЖДЕНИЯ ОТЗЫВА ПРОБЛЕМЫ ===== -->
+    <div id="withdrawOverlay" class="withdraw-overlay" aria-hidden="true">
+        <div class="withdraw-modal" role="dialog" aria-modal="true" aria-labelledby="withdrawTitle">
+            <div class="withdraw-icon">✕</div>
+            <h4 id="withdrawTitle">Хотите ли вы точно убрать?</h4>
+            <p id="withdrawText">Обращение будет помечено как отозванное.</p>
+            <div class="withdraw-actions">
+                <button type="button" id="withdrawCancel">Отменить</button>
+                <button type="button" id="withdrawConfirm" class="danger">Подтвердить</button>
             </div>
         </div>
     </div>
@@ -1103,6 +1142,8 @@
                 ru: {
                     tabs: { map:'🗺️ Карта', problems:'⚠️ Проблемы', settings:'⚙️ Настройки' },
                     navigator:'🧭 Навигатор', navSubtitle:'Маршрут с учётом состояния дорог',
+                    voiceOn:'🔊 Вкл.', voiceOff:'🔇 Выкл.', voiceLabel:'🔊 Голосовое сопровождение', voiceEnabled:'Голосовое сопровождение включено', voiceDisabled:'Голосовое сопровождение выключено', voiceRoute:'Маршрут построен. ', voiceNext:'Далее: ', voiceArrival:'Вы прибыли в пункт назначения.',
+                    withdrawSwipe:'Свайпните влево, чтобы отозвать', withdrawTitle:'Хотите ли вы точно убрать?', withdrawText:'Обращение будет помечено как отозванное и останется в истории.', withdrawCancel:'Отменить', withdrawConfirm:'Подтвердить', withdrawSuccess:'Обращение отозвано.', withdrawError:'Не удалось отозвать обращение.',
                     myLocation:'Моё местоположение', myGeo:'Моя геолокация', onMap:'📍 На карте',
                     destination:'Куда ехать? Например: Казань, Кремль', go:'Поехали',
                     navStartHint:'Введите адрес отправления или выберите точку на карте.',
@@ -1154,6 +1195,8 @@
                 en: {
                     tabs: { map:'🗺️ Map', problems:'⚠️ Problems', settings:'⚙️ Settings' },
                     navigator:'🧭 Navigator', navSubtitle:'Routing with road-condition awareness',
+                    voiceOn:'🔊 On', voiceOff:'🔇 Off', voiceLabel:'🔊 Voice guidance', voiceEnabled:'Voice guidance enabled', voiceDisabled:'Voice guidance disabled', voiceRoute:'Route built. ', voiceNext:'Next: ', voiceArrival:'You have arrived at your destination.',
+                    withdrawSwipe:'Swipe left to withdraw', withdrawTitle:'Are you sure you want to remove it?', withdrawText:'The report will be marked as withdrawn and kept in history.', withdrawCancel:'Cancel', withdrawConfirm:'Confirm', withdrawSuccess:'Report withdrawn.', withdrawError:'Could not withdraw the report.',
                     myLocation:'My location', myGeo:'My location', onMap:'📍 On map',
                     destination:'Where to? Example: Kazan, Kremlin', go:'Go',
                     navStartHint:'Enter a start address or choose a point on the map.',
@@ -1324,6 +1367,9 @@
                 const addStation = document.getElementById('addStationBtn'); if (addStation) addStation.textContent = s.addStation;
                 const priceNote = document.getElementById('priceApiDescription'); if (priceNote) priceNote.textContent = s.serverPriceNote;
                 setText('consoleMessage', s.systemReady);
+                setText('voiceGuidanceLabel', s.voiceLabel);
+                const voiceBtn = document.getElementById('voiceGuidanceBtn'); if (voiceBtn) voiceBtn.title = voiceGuidance ? s.voiceOn : s.voiceOff;
+                const voiceToggle = document.getElementById('voiceGuidanceToggle'); if (voiceToggle) voiceToggle.textContent = voiceGuidance ? s.voiceOn : s.voiceOff;
                 const footer = document.querySelector('.footer'); if (footer) footer.textContent = s.footer;
                 setText('pickerTitle', s.pickTitle); setText('pickerCancel', s.pickCancel); setText('pickerDone', s.pickDone);
                 if (!roadMode) setText('pickerHint', s.pickPoint);
@@ -1630,7 +1676,7 @@
                     problemsLayer.clearLayers();
                     problemsPointsLayer.clearLayers();
                     problems.forEach((p) => {
-                        if (p.status === 'rejected') return;
+                        if (p.status === 'rejected' || p.status === 'withdrawn') return;
                         if (p.is_road && Array.isArray(p.route) && p.route.length >= 2) {
                             const line = L.polyline(p.route, { color: '#e53935', weight: 7, opacity: 0.82, interactive: true });
                             line.bindPopup(`<b>🚧 ${navEscape(lang === 'en' ? (p.title_en || p.title_ru || 'Bad road') : (p.title_ru || 'Плохая дорога'))}</b><br/>📍 ${navEscape(displayRegion(p.region || ''))}<br/>📊 ${statusLabel(p.status)}
@@ -1674,9 +1720,10 @@
                     container.innerHTML = `<div class="loading">✅ ${tr('noProblems')}</div>`;
                     return;
                 }
-                problems.slice(0,50).forEach((p) => {
+                const visibleProblems = (isAdmin() ? problems : problems.filter(p => p.status !== 'withdrawn')).slice(0,50);
+                visibleProblems.forEach((p) => {
                     const div=document.createElement('div');
-                    div.className='problem-item';
+                    div.className='problem-swipe-wrap';
                     const status=p.status||'new';
                     let badgeClass='badge new';
                     if(status==='confirmed') badgeClass='badge ai';
@@ -1687,20 +1734,106 @@
                         : (p.lat!=null&&p.lng!=null)
                             ? `${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}`
                             : (lang==='en' ? '📍 coordinates not specified' : '📍 координаты не указаны');
+                    const isOwner = !!user && Number(p.created_by) === Number(user.id) && !['withdrawn','rejected'].includes(status);
                     div.innerHTML=`
-                        <div class="title"><span>${navEscape(title)}</span><span class="${badgeClass}">${statusLabel(status)}</span></div>
-                        <div class="meta">
-                            <span>📍 ${navEscape(displayRegion(p.region || (lang==='en'?'Not specified':'Не указан')))}</span>
-                            <span>📂 ${categoryLabel(p.category)}</span>
-                            ${p.created_at?`<span>🕐 ${new Date(p.created_at).toLocaleDateString(lang==='en'?'en-GB':'ru-RU')}</span>`:''}
-                        </div>
-                        <div class="coords">${coordsText}</div>
-                        ${p.ai_verdict?`<div style="font-size:.7rem;color:#8bc34a;margin-top:4px;">🤖 ${navEscape(p.ai_verdict)}</div>`:''}
-                    `;
+                        ${isOwner ? `<div class="swipe-delete-action" aria-hidden="true">✕</div>` : ''}
+                        <div class="problem-item ${isOwner ? 'swipeable' : ''}" data-problem-id="${p.id}">
+                            <div class="problem-content">
+                                <div class="title"><span>${navEscape(title)}</span><span class="${badgeClass}">${statusLabel(status)}</span></div>
+                                <div class="meta">
+                                    <span>📍 ${navEscape(displayRegion(p.region || (lang==='en'?'Not specified':'Не указан')))}</span>
+                                    <span>📂 ${categoryLabel(p.category)}</span>
+                                    ${p.created_at?`<span>🕐 ${new Date(p.created_at).toLocaleDateString(lang==='en'?'en-GB':'ru-RU')}</span>`:''}
+                                </div>
+                                <div class="coords">${coordsText}</div>
+                                ${p.ai_verdict?`<div style="font-size:.7rem;color:#8bc34a;margin-top:4px;">🤖 ${navEscape(p.ai_verdict)}</div>`:''}
+                                ${isOwner ? `<div class="swipe-hint">↔ ${tr('withdrawSwipe')}</div>` : ''}
+                            </div>
+                        </div>`;
                     container.appendChild(div);
+                    if (isOwner) wireSwipeWithdraw(div, p.id);
                 });
             }
 
+            function wireSwipeWithdraw(wrapper, id) {
+                const card = wrapper.querySelector('.swipeable');
+                if (!card) return;
+                let startX = 0, currentX = 0, dragging = false;
+                const closeOther = () => document.querySelectorAll('.problem-swipe-wrap.swiped').forEach(el => { if (el !== wrapper) el.classList.remove('swiped'); });
+                card.addEventListener('touchstart', e => {
+                    if (!e.touches[0]) return;
+                    startX = e.touches[0].clientX; currentX = 0; dragging = true;
+                    card.style.transition = 'none';
+                }, { passive: true });
+                card.addEventListener('touchmove', e => {
+                    if (!dragging || !e.touches[0]) return;
+                    currentX = Math.min(0, e.touches[0].clientX - startX);
+                    if (currentX < 0) {
+                        e.preventDefault();
+                        card.style.transform = `translateX(${Math.max(-92, currentX)}px)`;
+                    }
+                }, { passive: false });
+                card.addEventListener('touchend', () => {
+                    if (!dragging) return;
+                    dragging = false;
+                    card.style.transition = '';
+                    if (currentX < -55) {
+                        closeOther();
+                        wrapper.classList.add('swiped');
+                        card.style.transform = 'translateX(-92px)';
+                    } else {
+                        wrapper.classList.remove('swiped');
+                        card.style.transform = '';
+                    }
+                });
+                const action = wrapper.querySelector('.swipe-delete-action');
+                if (action) action.onclick = e => { e.stopPropagation(); openWithdrawModal(id, wrapper); };
+            }
+
+            let pendingWithdrawId = null;
+            let pendingWithdrawWrapper = null;
+            function openWithdrawModal(id, wrapper) {
+                pendingWithdrawId = Number(id);
+                pendingWithdrawWrapper = wrapper;
+                const overlay = document.getElementById('withdrawOverlay');
+                if (!overlay) return;
+                document.getElementById('withdrawTitle').textContent = tr('withdrawTitle');
+                document.getElementById('withdrawText').textContent = tr('withdrawText');
+                document.getElementById('withdrawCancel').textContent = tr('withdrawCancel');
+                document.getElementById('withdrawConfirm').textContent = tr('withdrawConfirm');
+                overlay.classList.add('open');
+                overlay.setAttribute('aria-hidden','false');
+            }
+            function closeWithdrawModal() {
+                const overlay = document.getElementById('withdrawOverlay');
+                if (!overlay) return;
+                overlay.classList.remove('open');
+                overlay.setAttribute('aria-hidden','true');
+                pendingWithdrawId = null;
+                pendingWithdrawWrapper = null;
+            }
+            async function confirmWithdraw() {
+                if (!pendingWithdrawId) return;
+                const id = pendingWithdrawId;
+                const wrapper = pendingWithdrawWrapper;
+                const btn = document.getElementById('withdrawConfirm');
+                btn.disabled = true;
+                try {
+                    await apiRequest(`/problems/${id}/withdraw`, { method: 'PATCH' });
+                    const item = problems.find(p => Number(p.id) === id);
+                    if (item) item.status = 'withdrawn';
+                    closeWithdrawModal();
+                    if (wrapper) wrapper.remove();
+                    renderMapMarkers();
+                    navRouteLayers.forEach(layer => { try { map.removeLayer(layer); } catch (_) {} });
+                    navRouteLayers = [];
+                    document.getElementById('consoleMessage').innerText = '✅ ' + tr('withdrawSuccess');
+                } catch (err) {
+                    alert(err.message || tr('withdrawError'));
+                } finally {
+                    btn.disabled = false;
+                }
+            }
             // ===== ОТПРАВКА ПРОБЛЕМЫ =====
             async function submitProblem() {
                 const submitBtn = document.getElementById('submitProblem');
@@ -1771,6 +1904,48 @@
                 } finally {
                     submitBtn.disabled = false;
                     submitBtn.textContent = tr('submit');
+                }
+            }
+
+            // ===== DEEPSEEK AI CHAT =====
+            async function sendAiChatMessage() {
+                const input = document.getElementById('chatInput');
+                const send = document.getElementById('chatSend');
+                const text = input?.value.trim();
+                if (!text) return;
+                if (!token) {
+                    alert(lang === 'en' ? 'Sign in first to use the AI assistant.' : 'Сначала войдите в аккаунт, чтобы использовать ИИ-помощника.');
+                    switchTab('settings');
+                    return;
+                }
+                const previous = send.textContent;
+                send.textContent = '…';
+                send.style.pointerEvents = 'none';
+                try {
+                    const data = await apiRequest('/ai/chat', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            message: text,
+                            language: lang,
+                            context: {
+                                selectedRegion: null,
+                                reportsCount: problems.length
+                            }
+                        })
+                    });
+                    document.getElementById('consoleMessage').innerText = '🤖 ' + data.answer;
+                    input.value = '';
+                    // Keep the answer visible in the support area without adding another full chat UI.
+                    const output = document.getElementById('aiChatOutput');
+                    if (output) output.textContent = data.answer;
+                } catch (err) {
+                    const msg = lang === 'en' ? `AI error: ${err.message}` : `Ошибка ИИ: ${err.message}`;
+                    document.getElementById('consoleMessage').innerText = msg;
+                    const output = document.getElementById('aiChatOutput');
+                    if (output) output.textContent = msg;
+                } finally {
+                    send.textContent = previous;
+                    send.style.pointerEvents = '';
                 }
             }
 
@@ -1906,6 +2081,96 @@
             let navSuggestControllers = { start: null, destination: null };
             const navSuggestCache = new Map();
 
+            // ===== ГОЛОСОВОЕ СОПРОВОЖДЕНИЕ =====
+            let voiceGuidance = localStorage.getItem('voiceGuidance') === 'true';
+            let voiceWatchId = null;
+            let voiceAnnouncedSteps = new Set();
+            let voiceRouteSteps = [];
+            let voiceLastPosition = null;
+            let voiceArrivalAnnounced = false;
+
+            function voiceSupported() { return 'speechSynthesis' in window; }
+            function speak(text) {
+                if (!voiceGuidance || !voiceSupported() || !text) return;
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(String(text));
+                utterance.lang = lang === 'en' ? 'en-US' : 'ru-RU';
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+                window.speechSynthesis.speak(utterance);
+            }
+            function updateVoiceControls() {
+                const btn = document.getElementById('voiceGuidanceBtn');
+                const toggle = document.getElementById('voiceGuidanceToggle');
+                const enabled = voiceGuidance && voiceSupported();
+                if (btn) {
+                    btn.textContent = enabled ? '🔊' : '🔇';
+                    btn.title = enabled ? tr('voiceOn') : tr('voiceOff');
+                    btn.setAttribute('aria-label', tr('voiceLabel'));
+                }
+                if (toggle) {
+                    toggle.textContent = enabled ? tr('voiceOn') : tr('voiceOff');
+                    toggle.classList.toggle('on', enabled);
+                    toggle.setAttribute('aria-pressed', String(enabled));
+                }
+            }
+            function setVoiceGuidance(enabled) {
+                voiceGuidance = !!enabled && voiceSupported();
+                localStorage.setItem('voiceGuidance', String(voiceGuidance));
+                if (!voiceGuidance && voiceSupported()) window.speechSynthesis.cancel();
+                updateVoiceControls();
+                navSetStatus(voiceGuidance ? tr('voiceEnabled') : tr('voiceDisabled'), 'ok');
+            }
+            function voiceStepDistanceMeters(pos, step) {
+                const loc = step?.maneuver?.location;
+                if (!Array.isArray(loc) || loc.length < 2) return Infinity;
+                return navHaversine([pos.lat, pos.lng], [Number(loc[1]), Number(loc[0])]);
+            }
+            function startVoiceNavigation(route) {
+                if (!voiceGuidance || !route) return;
+                voiceAnnouncedSteps = new Set();
+                voiceArrivalAnnounced = false;
+                voiceRouteSteps = [];
+                (route.legs || []).forEach(leg => (leg.steps || []).forEach(step => voiceRouteSteps.push(step)));
+                if (!voiceRouteSteps.length) return;
+                const first = navStepText(voiceRouteSteps[0]);
+                speak(tr('voiceRoute') + tr('voiceNext') + first.action + ' — ' + first.road);
+                if (navigator.geolocation) {
+                    if (voiceWatchId != null) navigator.geolocation.clearWatch(voiceWatchId);
+                    voiceWatchId = navigator.geolocation.watchPosition(handleVoicePosition, () => {}, { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 });
+                }
+            }
+            function stopVoiceNavigation() {
+                if (voiceWatchId != null && navigator.geolocation) navigator.geolocation.clearWatch(voiceWatchId);
+                voiceWatchId = null;
+                voiceLastPosition = null;
+                voiceRouteSteps = [];
+                voiceAnnouncedSteps = new Set();
+            }
+            function handleVoicePosition(position) {
+                if (!voiceGuidance || !voiceRouteSteps.length) return;
+                const pos = { lat: position.coords.latitude, lng: position.coords.longitude };
+                voiceLastPosition = pos;
+                const last = voiceRouteSteps[voiceRouteSteps.length - 1];
+                const lastDistance = voiceStepDistanceMeters(pos, last);
+                if (lastDistance < 35 && !voiceArrivalAnnounced) {
+                    voiceArrivalAnnounced = true;
+                    speak(tr('voiceArrival'));
+                    return;
+                }
+                // Announce the next maneuver once, when the driver is within ~220 m.
+                for (let i = 1; i < voiceRouteSteps.length; i++) {
+                    if (voiceAnnouncedSteps.has(i)) continue;
+                    const d = voiceStepDistanceMeters(pos, voiceRouteSteps[i]);
+                    if (d <= 220) {
+                        const step = navStepText(voiceRouteSteps[i]);
+                        voiceAnnouncedSteps.add(i);
+                        speak(tr('voiceNext') + step.action + ' — ' + step.road + (voiceRouteSteps[i].distance ? `, ${navFormatDistance(voiceRouteSteps[i].distance)}` : ''));
+                        break;
+                    }
+                }
+            }
+
             function navSetStatus(text, type = '') {
                 const el = document.getElementById('navStatus');
                 if (!el) return;
@@ -1959,7 +2224,7 @@
             function navBadPointCloud() {
                 const cloud = [];
                 (problems || []).forEach(p => {
-                    if (p.status === 'rejected') return;
+                    if (p.status === 'rejected' || p.status === 'withdrawn') return;
                     if (p.is_road && Array.isArray(p.route)) {
                         p.route.forEach(pt => {
                             if (Array.isArray(pt) && pt.length >= 2) cloud.push([Number(pt[0]), Number(pt[1])]);
@@ -2114,6 +2379,8 @@
                     b.textContent = LANG[lang][mode] || b.textContent;
                 });
                 navRenderSteps(route);
+                if (voiceGuidance) startVoiceNavigation(route);
+                updateVoiceControls();
             }
 
             async function navGeocode(query) {
@@ -2336,6 +2603,13 @@
                 initMap();
                 initNavigator();
                 updateUI();
+                updateVoiceControls();
+                document.getElementById('voiceGuidanceBtn').addEventListener('click', () => setVoiceGuidance(!voiceGuidance));
+                document.getElementById('voiceGuidanceToggle').addEventListener('click', () => setVoiceGuidance(!voiceGuidance));
+                document.getElementById('withdrawCancel').addEventListener('click', closeWithdrawModal);
+                document.getElementById('withdrawConfirm').addEventListener('click', confirmWithdraw);
+                document.getElementById('withdrawOverlay').addEventListener('click', (e) => { if (e.target.id === 'withdrawOverlay') closeWithdrawModal(); });
+                document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeWithdrawModal(); });
                 applyTheme(localStorage.getItem('theme') || 'light');
                 applyLanguage(localStorage.getItem('lang') || 'ru');
                 document.querySelectorAll('.lang-btn').forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
@@ -2372,12 +2646,8 @@
                 document.getElementById('savePriceApi').addEventListener('click', savePriceApi);
                 document.getElementById('addStationBtn').addEventListener('click', addStationManually);
 
-                document.getElementById('chatSend').addEventListener('click', () => {
-                    const input = document.getElementById('chatInput');
-                    if (!input.value.trim()) return;
-                    document.getElementById('consoleMessage').innerText = lang === 'en' ? '💬 Message sent to support (demo)' : '💬 Сообщение отправлено в поддержку (демо)';
-                    input.value = '';
-                });
+                document.getElementById('chatSend').addEventListener('click', sendAiChatMessage);
+                document.getElementById('chatInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendAiChatMessage(); });
             });
         })();
         </script>

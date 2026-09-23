@@ -37,6 +37,7 @@ async function runAiCheck({ apiKey, imageDataUrl, description }) {
     },
     body: JSON.stringify({
       model: "deepseek-flash",
+      thinking: { type: "disabled" },
       messages: [{
         role: "user",
         content: [

@@ -12,6 +12,7 @@ const problemsRoutes = require("./routes/problems");
 const adminRoutes = require("./routes/admin");
 const stationsRoutes = require("./routes/stations");
 const geocodeRoutes = require("./routes/geocode");
+const aiRoutes = require("./routes/ai");
 const { syncPrices } = require("./scripts/sync-prices");
 
 const app = express();
@@ -34,6 +35,7 @@ app.use("/api/problems", problemsRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/stations", stationsRoutes);
 app.use("/api/geocode", geocodeRoutes);
+app.use("/api/ai", aiRoutes);
 
 // Serve the frontend from the same server, so one deploy = the whole site.
 app.use(express.static(path.join(__dirname, "frontend")));
