@@ -681,7 +681,7 @@
         .problem-swipe-wrap { position:relative; overflow:hidden; border-radius:14px; margin-bottom:12px; }
         .problem-swipe-wrap .problem-item { margin-bottom:0; position:relative; z-index:2; transition:transform .18s ease; touch-action:pan-y; }
         .problem-swipe-wrap .problem-content { min-width:0; }
-        .swipe-delete-action { position:absolute; inset:0 0 0 auto; width:92px; display:flex; align-items:center; justify-content:center; background:#c43d3d; color:#fff; font-weight:800; cursor:pointer; }
+        .swipe-delete-action { position:absolute; inset:0 auto 0 0; width:92px; display:flex; align-items:center; justify-content:center; background:#c43d3d; color:#fff; font-weight:800; cursor:pointer; }
         .swipe-hint { font-size:.65rem; color:#7188a3; margin-top:7px; }
         .withdraw-overlay { position:fixed; inset:0; background:rgba(0,0,0,.62); display:none; align-items:center; justify-content:center; z-index:10000; padding:20px; }
         .withdraw-overlay.open { display:flex; }
@@ -1084,6 +1084,22 @@
         </div>
     </div>
 
+    <!-- ===== МОДАЛКА ПРОВЕРКИ ИСПРАВЛЕНИЯ ПРОБЛЕМЫ ===== -->
+    <div id="resolveOverlay" class="withdraw-overlay" aria-hidden="true">
+        <div class="withdraw-modal resolve-modal" role="dialog" aria-modal="true" aria-labelledby="resolveTitle">
+            <div class="withdraw-icon">🤖</div>
+            <h4 id="resolveTitle">Проблема исправлена?</h4>
+            <p id="resolveText">Загрузите фото, подтверждающее исправление. ИИ сравнит его с исходной проблемой.</p>
+            <input id="resolveFile" type="file" accept="image/jpeg,image/png,image/gif,image/webp" style="width:100%;margin:8px 0;" />
+            <textarea id="resolveNote" rows="3" placeholder="Что было исправлено? (необязательно)" style="width:100%;margin:4px 0 10px;"></textarea>
+            <div id="resolveResult" style="text-align:left;margin-bottom:10px;"></div>
+            <div class="withdraw-actions">
+                <button type="button" id="resolveCancel">Отменить</button>
+                <button type="button" id="resolveConfirm" class="danger">Проверить ИИ</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== МОДАЛКА ВЫБОРА МЕСТА (мини-карта) ===== -->
     <div id="pickerOverlay" class="picker-overlay">
         <div class="picker-sheet">
@@ -1143,7 +1159,7 @@
                     tabs: { map:'🗺️ Карта', problems:'⚠️ Проблемы', settings:'⚙️ Настройки' },
                     navigator:'🧭 Навигатор', navSubtitle:'Маршрут с учётом состояния дорог',
                     voiceOn:'🔊 Вкл.', voiceOff:'🔇 Выкл.', voiceLabel:'🔊 Голосовое сопровождение', voiceEnabled:'Голосовое сопровождение включено', voiceDisabled:'Голосовое сопровождение выключено', voiceRoute:'Маршрут построен. ', voiceNext:'Далее: ', voiceArrival:'Вы прибыли в пункт назначения.',
-                    withdrawSwipe:'Свайпните влево, чтобы отозвать', withdrawTitle:'Хотите ли вы точно убрать?', withdrawText:'Обращение будет помечено как отозванное и останется в истории.', withdrawCancel:'Отменить', withdrawConfirm:'Подтвердить', withdrawSuccess:'Обращение отозвано.', withdrawError:'Не удалось отозвать обращение.',
+                    withdrawSwipe:'Свайпните вправо, чтобы убрать', withdrawTitle:'Точно ли вы хотите удалить?', withdrawText:'Обращение будет помечено как удалённое и останется в истории.', withdrawCancel:'Отменить', withdrawConfirm:'Подтвердить', withdrawSuccess:'Обращение удалено.', withdrawError:'Не удалось удалить обращение.', markFixed:'Проблема исправлена', resolveTitle:'Проблема исправлена?', resolveText:'Загрузите фото, подтверждающее исправление. ИИ сравнит его с исходной проблемой.', resolveNote:'Что было исправлено? (необязательно)', resolveCheck:'Проверить ИИ', resolveChecking:'🤖 ИИ проверяет, действительно ли проблема исправлена…', resolveAccepted:'ИИ подтвердил исправление. Проблема убрана с карты.', resolveRejected:'ИИ не смог подтвердить, что проблема исправлена. Она останется на карте.', resolveError:'Не удалось проверить исправление.', resolveNeedPhoto:'Загрузите фото исправленной проблемы.' ,
                     myLocation:'Моё местоположение', myGeo:'Моя геолокация', onMap:'📍 На карте',
                     destination:'Куда ехать? Например: Казань, Кремль', go:'Поехали',
                     navStartHint:'Введите адрес отправления или выберите точку на карте.',
@@ -1196,7 +1212,7 @@
                     tabs: { map:'🗺️ Map', problems:'⚠️ Problems', settings:'⚙️ Settings' },
                     navigator:'🧭 Navigator', navSubtitle:'Routing with road-condition awareness',
                     voiceOn:'🔊 On', voiceOff:'🔇 Off', voiceLabel:'🔊 Voice guidance', voiceEnabled:'Voice guidance enabled', voiceDisabled:'Voice guidance disabled', voiceRoute:'Route built. ', voiceNext:'Next: ', voiceArrival:'You have arrived at your destination.',
-                    withdrawSwipe:'Swipe left to withdraw', withdrawTitle:'Are you sure you want to remove it?', withdrawText:'The report will be marked as withdrawn and kept in history.', withdrawCancel:'Cancel', withdrawConfirm:'Confirm', withdrawSuccess:'Report withdrawn.', withdrawError:'Could not withdraw the report.',
+                    withdrawSwipe:'Swipe right to remove', withdrawTitle:'Are you sure you want to delete it?', withdrawText:'The report will be marked as deleted and kept in history.', withdrawCancel:'Cancel', withdrawConfirm:'Confirm', withdrawSuccess:'Report deleted.', withdrawError:'Could not delete the report.', markFixed:'Problem fixed', resolveTitle:'Has the problem been fixed?', resolveText:'Upload a photo showing the fix. AI will compare it with the original problem.', resolveNote:'What was fixed? (optional)', resolveCheck:'Check with AI', resolveChecking:'🤖 AI is checking whether the problem was actually fixed…', resolveAccepted:'AI confirmed the fix. The problem was removed from the map.', resolveRejected:'AI could not confirm that the problem was fixed. It will stay on the map.', resolveError:'Could not verify the fix.', resolveNeedPhoto:'Upload a photo of the fixed problem.' ,
                     myLocation:'My location', myGeo:'My location', onMap:'📍 On map',
                     destination:'Where to? Example: Kazan, Kremlin', go:'Go',
                     navStartHint:'Enter a start address or choose a point on the map.',
@@ -1575,11 +1591,11 @@
             }
 
             const STATUS_LABELS = {
-                new: 'На проверке', confirmed: 'Подтверждено', rejected: 'Отклонено'
+                new: 'На проверке', confirmed: 'Подтверждено', rejected: 'Отклонено', resolved: 'Исправлено'
             };
             function statusLabel(status) {
                 const map = lang === 'en'
-                    ? { new:'Pending review', confirmed:'Confirmed', rejected:'Rejected' }
+                    ? { new:'Pending review', confirmed:'Confirmed', rejected:'Rejected', resolved:'Fixed' }
                     : { new:'На проверке', confirmed:'Подтверждено', rejected:'Отклонено' };
                 return map[status] || status;
             }
@@ -1676,12 +1692,14 @@
                     problemsLayer.clearLayers();
                     problemsPointsLayer.clearLayers();
                     problems.forEach((p) => {
-                        if (p.status === 'rejected' || p.status === 'withdrawn') return;
+                        if (p.status === 'rejected' || p.status === 'withdrawn' || p.status === 'resolved') return;
                         if (p.is_road && Array.isArray(p.route) && p.route.length >= 2) {
                             const line = L.polyline(p.route, { color: '#e53935', weight: 7, opacity: 0.82, interactive: true });
                             line.bindPopup(`<b>🚧 ${navEscape(lang === 'en' ? (p.title_en || p.title_ru || 'Bad road') : (p.title_ru || 'Плохая дорога'))}</b><br/>📍 ${navEscape(displayRegion(p.region || ''))}<br/>📊 ${statusLabel(p.status)}
                             <div class="station-actions">
                                 <button onclick="window.navSetPointAsStart(${Number(p.lat || p.route?.[0]?.[0] || 0)},${Number(p.lng || p.route?.[0]?.[1] || 0)},${JSON.stringify(p.region || '')})">${tr('from')}</button>
+                                <button onclick="openResolveModal(${Number(p.id)})">${tr('markFixed')}</button>
+                                <button onclick="window.openProblemFix(${Number(p.id)})">${lang === 'en' ? 'Problem fixed' : 'Проблема исправлена'}</button>
                             </div>`);
                             problemsLayer.addLayer(line);
                         } else if (p.lat != null && p.lng != null) {
@@ -1691,6 +1709,8 @@
                                 <div class="station-actions">
                                     <button onclick="window.navSetPointAsStart(${Number(p.lat)},${Number(p.lng)},${JSON.stringify(problemTitle)})">${tr('from')}</button>
                                     <button onclick="window.navSetPointAsDestination(${Number(p.lat)},${Number(p.lng)},${JSON.stringify(problemTitle)})">${tr('to')}</button>
+                                    <button onclick="openResolveModal(${Number(p.id)})">${tr('markFixed')}</button>
+                                    <button onclick="window.openProblemFix(${Number(p.id)})">${lang === 'en' ? 'Problem fixed' : 'Проблема исправлена'}</button>
                                 </div>`);
                             problemsPointsLayer.addLayer(marker);
                         }
@@ -1720,7 +1740,7 @@
                     container.innerHTML = `<div class="loading">✅ ${tr('noProblems')}</div>`;
                     return;
                 }
-                const visibleProblems = (isAdmin() ? problems : problems.filter(p => p.status !== 'withdrawn')).slice(0,50);
+                const visibleProblems = (isAdmin() ? problems : problems.filter(p => !['withdrawn','resolved'].includes(p.status))).filter(p => p.status !== 'resolved').slice(0,50);
                 visibleProblems.forEach((p) => {
                     const div=document.createElement('div');
                     div.className='problem-swipe-wrap';
@@ -1734,7 +1754,7 @@
                         : (p.lat!=null&&p.lng!=null)
                             ? `${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}`
                             : (lang==='en' ? '📍 coordinates not specified' : '📍 координаты не указаны');
-                    const isOwner = !!user && Number(p.created_by) === Number(user.id) && !['withdrawn','rejected'].includes(status);
+                    const isOwner = !!user && Number(p.created_by) === Number(user.id) && !['withdrawn','rejected','resolved'].includes(status);
                     div.innerHTML=`
                         ${isOwner ? `<div class="swipe-delete-action" aria-hidden="true">✕</div>` : ''}
                         <div class="problem-item ${isOwner ? 'swipeable' : ''}" data-problem-id="${p.id}">
@@ -1748,6 +1768,7 @@
                                 <div class="coords">${coordsText}</div>
                                 ${p.ai_verdict?`<div style="font-size:.7rem;color:#8bc34a;margin-top:4px;">🤖 ${navEscape(p.ai_verdict)}</div>`:''}
                                 ${isOwner ? `<div class="swipe-hint">↔ ${tr('withdrawSwipe')}</div>` : ''}
+                                <button type="button" class="problem-fix-btn" onclick="openResolveModal(${Number(p.id)})">${tr('markFixed')}</button>
                             </div>
                         </div>`;
                     container.appendChild(div);
@@ -1767,20 +1788,20 @@
                 }, { passive: true });
                 card.addEventListener('touchmove', e => {
                     if (!dragging || !e.touches[0]) return;
-                    currentX = Math.min(0, e.touches[0].clientX - startX);
-                    if (currentX < 0) {
+                    currentX = Math.max(0, e.touches[0].clientX - startX);
+                    if (currentX > 0) {
                         e.preventDefault();
-                        card.style.transform = `translateX(${Math.max(-92, currentX)}px)`;
+                        card.style.transform = `translateX(${Math.min(92, currentX)}px)`;
                     }
                 }, { passive: false });
                 card.addEventListener('touchend', () => {
                     if (!dragging) return;
                     dragging = false;
                     card.style.transition = '';
-                    if (currentX < -55) {
+                    if (currentX > 55) {
                         closeOther();
                         wrapper.classList.add('swiped');
-                        card.style.transform = 'translateX(-92px)';
+                        card.style.transform = 'translateX(92px)';
                     } else {
                         wrapper.classList.remove('swiped');
                         card.style.transform = '';
@@ -1812,6 +1833,72 @@
                 pendingWithdrawId = null;
                 pendingWithdrawWrapper = null;
             }
+
+            // ===== ПРОВЕРКА, ЧТО ПРОБЛЕМА ИСПРАВЛЕНА =====
+            let pendingResolveId = null;
+            function openResolveModal(id) {
+                if (!token) {
+                    alert(lang === 'en' ? 'Please sign in first.' : 'Сначала войдите в аккаунт.');
+                    switchTab('settings');
+                    return;
+                }
+                pendingResolveId = Number(id);
+                const overlay = document.getElementById('resolveOverlay');
+                document.getElementById('resolveTitle').textContent = tr('resolveTitle');
+                document.getElementById('resolveText').textContent = tr('resolveText');
+                document.getElementById('resolveNote').placeholder = tr('resolveNote');
+                document.getElementById('resolveConfirm').textContent = tr('resolveCheck');
+                document.getElementById('resolveCancel').textContent = tr('withdrawCancel');
+                document.getElementById('resolveResult').innerHTML = '';
+                document.getElementById('resolveFile').value = '';
+                overlay.classList.add('open');
+                overlay.setAttribute('aria-hidden','false');
+            }
+            function closeResolveModal() {
+                const overlay = document.getElementById('resolveOverlay');
+                if (!overlay) return;
+                overlay.classList.remove('open');
+                overlay.setAttribute('aria-hidden','true');
+                pendingResolveId = null;
+            }
+            async function confirmResolve() {
+                if (!pendingResolveId) return;
+                const file = document.getElementById('resolveFile').files[0];
+                const resultBox = document.getElementById('resolveResult');
+                const btn = document.getElementById('resolveConfirm');
+                if (!file) { resultBox.innerHTML = `<div style="color:#ff9d9d">${tr('resolveNeedPhoto')}</div>`; return; }
+                if (!/^image\/(jpeg|png|gif|webp)$/.test(file.type) || file.size > 2_500_000) {
+                    resultBox.innerHTML = `<div style="color:#ff9d9d">${lang === 'en' ? 'Photo must be JPEG, PNG, GIF or WebP and no larger than 2.5 MB.' : 'Фото должно быть JPEG, PNG, GIF или WebP и не больше 2,5 МБ.'}</div>`;
+                    return;
+                }
+                btn.disabled = true;
+                btn.textContent = tr('resolveChecking');
+                resultBox.innerHTML = '';
+                try {
+                    const imageDataUrl = await new Promise((resolve) => { const reader = new FileReader(); reader.onload = e => resolve(e.target.result); reader.readAsDataURL(file); });
+                    const note = document.getElementById('resolveNote').value.trim();
+                    const data = await apiRequest(`/problems/${pendingResolveId}/resolve`, { method:'POST', body:JSON.stringify({ imageDataUrl, note }) });
+                    if (data.resolved) {
+                        const item = problems.find(p => Number(p.id) === Number(pendingResolveId));
+                        if (item) item.status = 'resolved';
+                        resultBox.innerHTML = `<div style="color:#73d98b;font-weight:700">${tr('resolveAccepted')}</div>`;
+                        renderProblems();
+                        renderMapMarkers();
+                        navRouteLayers.forEach(layer => { try { map.removeLayer(layer); } catch (_) {} });
+                        navRouteLayers = [];
+                        setTimeout(closeResolveModal, 900);
+                    } else {
+                        resultBox.innerHTML = `<div style="color:#ffbd6b;font-weight:700">${tr('resolveRejected')}</div><div style="font-size:.75rem;color:#8da1ba;margin-top:5px;">${navEscape(data.ai_reason || '')} ${data.ai_confidence != null ? '(' + Math.round(Number(data.ai_confidence)*100) + '%)' : ''}</div>`;
+                        btn.disabled = false;
+                        btn.textContent = tr('resolveCheck');
+                    }
+                } catch (err) {
+                    resultBox.innerHTML = `<div style="color:#ff9d9d">${navEscape(err.message || tr('resolveError'))}</div>`;
+                    btn.disabled = false;
+                    btn.textContent = tr('resolveCheck');
+                }
+            }
+
             async function confirmWithdraw() {
                 if (!pendingWithdrawId) return;
                 const id = pendingWithdrawId;
@@ -2224,7 +2311,7 @@
             function navBadPointCloud() {
                 const cloud = [];
                 (problems || []).forEach(p => {
-                    if (p.status === 'rejected' || p.status === 'withdrawn') return;
+                    if (p.status === 'rejected' || p.status === 'withdrawn' || p.status === 'resolved') return;
                     if (p.is_road && Array.isArray(p.route)) {
                         p.route.forEach(pt => {
                             if (Array.isArray(pt) && pt.length >= 2) cloud.push([Number(pt[0]), Number(pt[1])]);
@@ -2608,6 +2695,9 @@
                 document.getElementById('voiceGuidanceToggle').addEventListener('click', () => setVoiceGuidance(!voiceGuidance));
                 document.getElementById('withdrawCancel').addEventListener('click', closeWithdrawModal);
                 document.getElementById('withdrawConfirm').addEventListener('click', confirmWithdraw);
+                document.getElementById('resolveCancel').addEventListener('click', closeResolveModal);
+                document.getElementById('resolveConfirm').addEventListener('click', confirmResolve);
+                document.getElementById('resolveOverlay').addEventListener('click', (e) => { if (e.target.id === 'resolveOverlay') closeResolveModal(); });
                 document.getElementById('withdrawOverlay').addEventListener('click', (e) => { if (e.target.id === 'withdrawOverlay') closeWithdrawModal(); });
                 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeWithdrawModal(); });
                 applyTheme(localStorage.getItem('theme') || 'light');

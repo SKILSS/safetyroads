@@ -75,6 +75,45 @@ async function runAiCheck({ apiKey, imageDataUrl, description }) {
   };
 }
 
+
+async function runResolutionAiCheck({ apiKey, originalImageDataUrl, resolutionImageDataUrl, description, resolutionNote }) {
+  const content = [
+    {
+      type: "text",
+      text: `You are checking whether a previously reported public-road/civic problem appears to have been fixed. This is image evidence only; do not claim certainty about the real-world event. Compare the current photo with the original problem photo when available, plus the original description and the user's note. Return ONLY valid JSON with exactly these keys: isFixed (boolean), confidence (number 0 to 1), reason (string max 350 chars). Mark isFixed=true only when the current image provides reasonably clear visual evidence that the described problem is no longer present or has been repaired. If the image is ambiguous, unrelated, too poor, or the issue could still be present, use false with low confidence. Original description: ${description}. User note: ${resolutionNote || "No additional note."}`
+    },
+  ];
+  if (originalImageDataUrl) content.push({ type: "text", text: "Original problem photo:" }, { type: "image_url", image_url: { url: originalImageDataUrl, detail: "high" } });
+  content.push({ type: "text", text: "Photo submitted as evidence of repair:" }, { type: "image_url", image_url: { url: resolutionImageDataUrl, detail: "high" } });
+
+  const aiRes = await fetch("https://api.deepseek.com/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: "deepseek-flash",
+      thinking: { type: "disabled" },
+      messages: [{ role: "user", content }],
+      max_tokens: 300,
+      response_format: { type: "json_object" },
+    }),
+  });
+  const bodyText = await aiRes.text();
+  if (!aiRes.ok) {
+    let detail = `DeepSeek HTTP ${aiRes.status}`;
+    try { detail = JSON.parse(bodyText)?.error?.message || detail; } catch {}
+    throw new Error(detail.slice(0, 220));
+  }
+  let data;
+  try { data = JSON.parse(bodyText); } catch { throw new Error("Invalid response from DeepSeek."); }
+  const parsed = parseAiJson(data?.choices?.[0]?.message?.content);
+  if (!parsed || typeof parsed.isFixed !== "boolean") throw new Error("DeepSeek returned an unexpected resolution response.");
+  return {
+    isFixed: parsed.isFixed,
+    confidence: Math.max(0, Math.min(1, Number(parsed.confidence) || 0)),
+    reason: String(parsed.reason || "").slice(0, 350),
+  };
+}
+
 router.post("/", requireAuth, writeLimiter, async (req, res) => {
   const { region, category, severity, titleRu, titleEn, imageDataUrl, lat, lng, isRoad, route } = req.body || {};
   if (!region || !titleRu || !titleEn) {
@@ -145,6 +184,68 @@ router.patch("/:id/withdraw", requireAuth, writeLimiter, async (req, res) => {
   );
   if (!result.rows[0]) return res.status(404).json({ error: "Report not found or you cannot withdraw it." });
   res.json(result.rows[0]);
+});
+
+
+// Any authenticated user can submit photo evidence that a problem was fixed.
+// The server keeps the original report and lets DeepSeek decide whether the new
+// photo is strong enough evidence. Only a high-confidence positive result
+// changes the public status to resolved.
+router.post("/:id/resolve", requireAuth, writeLimiter, async (req, res) => {
+  const { imageDataUrl, note } = req.body || {};
+  const image = parseDataUrl(imageDataUrl);
+  if (!image) return res.status(400).json({ error: "A valid repair photo is required." });
+
+  const current = await pool.query("SELECT * FROM problems WHERE id = $1", [req.params.id]);
+  const problem = current.rows[0];
+  if (!problem) return res.status(404).json({ error: "Problem not found." });
+  if (["withdrawn", "rejected", "resolved"].includes(problem.status)) {
+    return res.status(409).json({ error: "This problem is no longer active." });
+  }
+
+  const settings = (await pool.query("SELECT deepseek_api_key FROM app_settings WHERE id = 1")).rows[0];
+  const apiKey = settings?.deepseek_api_key || process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) {
+    await pool.query(`UPDATE problems SET resolution_ai_status='not_configured', resolved_image_data=$1, resolution_note=$2, resolved_by=$3 WHERE id=$4`,
+      [image.data, String(note || "").slice(0, 500), req.user.id, problem.id]);
+    return res.status(503).json({ error: "AI review is not configured by the administrator." });
+  }
+
+  let verdict;
+  try {
+    verdict = await runResolutionAiCheck({
+      apiKey,
+      originalImageDataUrl: problem.image_data,
+      resolutionImageDataUrl: image.data,
+      description: problem.title_ru || problem.title_en,
+      resolutionNote: String(note || "").slice(0, 500),
+    });
+  } catch (err) {
+    const msg = String(err.message || "AI check failed").slice(0, 220);
+    await pool.query(`UPDATE problems SET resolution_ai_status='error', resolved_image_data=$1, resolution_note=$2, resolved_by=$3 WHERE id=$4`,
+      [image.data, String(note || "").slice(0, 500), req.user.id, problem.id]);
+    console.error("[ai] resolution check failed:", msg);
+    return res.status(502).json({ error: msg });
+  }
+
+  const accepted = verdict.isFixed && verdict.confidence >= 0.80;
+  const updated = await pool.query(`
+    UPDATE problems SET
+      status=$1, resolved_by=$2, resolved_image_data=$3, resolution_note=$4,
+      resolution_ai_status='checked', resolution_ai_matches=$5,
+      resolution_ai_confidence=$6, resolution_ai_verdict=$7,
+      resolution_ai_checked_at=now(), resolved_at=CASE WHEN $1='resolved' THEN now() ELSE NULL END
+    WHERE id=$8 RETURNING *`,
+    [accepted ? "resolved" : problem.status, req.user.id, image.data, String(note || "").slice(0, 500),
+      verdict.isFixed, verdict.confidence, verdict.reason, problem.id]
+  );
+
+  res.json({
+    ...updated.rows[0],
+    resolved: accepted,
+    ai_reason: verdict.reason,
+    ai_confidence: verdict.confidence,
+  });
 });
 
 router.patch("/:id", requireAdmin, writeLimiter, async (req, res) => {

@@ -53,6 +53,15 @@ async function initSchema() {
     ALTER TABLE problems ADD COLUMN IF NOT EXISTS ai_confidence NUMERIC;
     ALTER TABLE problems ADD COLUMN IF NOT EXISTS ai_detected TEXT;
     ALTER TABLE problems ADD COLUMN IF NOT EXISTS ai_checked_at TIMESTAMPTZ;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS resolved_by INTEGER REFERENCES users(id);
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS resolved_image_data TEXT;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS resolution_note TEXT;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS resolution_ai_status TEXT NOT NULL DEFAULT 'not_checked';
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS resolution_ai_matches BOOLEAN;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS resolution_ai_confidence NUMERIC;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS resolution_ai_verdict TEXT;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS resolution_ai_checked_at TIMESTAMPTZ;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
 
     -- Gas stations. Locations can be bulk-imported (see scripts/sync-stations.js,
     -- which pulls them from OpenStreetMap/Overpass — free, no key needed).

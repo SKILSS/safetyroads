@@ -228,3 +228,23 @@ textarea, select, input[type="text"], input[type="password"] {
 .withdraw-actions button.danger { background:#c43d3d; }
 .ai-chat-output { margin-top:8px; padding:9px 11px; border-radius:10px; background:#172232; color:#b9c8da; font-size:.75rem; line-height:1.45; min-height:36px; }
 .nav-head-actions { display:flex; gap:6px; }
+
+/* SafetyRoad v8: right-swipe delete + community fix verification */
+.problem-swipe-wrap { position:relative; overflow:hidden; border-radius:14px; margin-bottom:12px; background:var(--surface-raised); }
+.problem-swipe-wrap .problem-item { margin-bottom:0; position:relative; z-index:2; transition:transform .18s ease; touch-action:pan-y; }
+.problem-swipe-wrap .swipe-delete-action { position:absolute; inset:0 auto 0 0; width:92px; border:0; display:flex; align-items:center; justify-content:center; background:#c43d3d; color:#fff; font-size:22px; font-weight:800; cursor:pointer; z-index:1; }
+.problem-actions-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:7px; }
+.problem-actions-row .admin-btn { margin-top:0 !important; }
+.swipe-hint { font-size:.65rem; color:#7188a3; }
+.fix-panel { display:none; padding:12px; border-top:1px solid var(--border); background:var(--surface); }
+.fix-panel.open { display:block; }
+.fix-panel-title { font-weight:800; margin-bottom:8px; }
+.fix-upload { min-height:80px; border:1px dashed var(--border); border-radius:10px; display:flex; align-items:center; justify-content:center; padding:8px; cursor:pointer; color:var(--text-muted); text-align:center; }
+.fix-upload img { max-width:100%; max-height:150px; border-radius:8px; object-fit:cover; }
+.fix-note { width:100%; margin-top:8px; }
+.fix-actions { display:flex; gap:8px; margin-top:8px; }
+.fix-actions button { flex:1; }
+.fix-result { margin-top:8px; }
+.problem-swipe-wrap .swipe-delete-action { inset:0 auto 0 0 !important; }
+.problem-fix-btn { margin-top:7px; border:1px solid #3a6ea5; border-radius:8px; background:#1c2d42; color:#dce6f0; padding:6px 9px; cursor:pointer; font-size:12px; }
+.resolve-modal input[type=file] { color:#b9c8da; }

@@ -138,8 +138,8 @@ function renderSidePanel(mount) {
   const s = t();
   const side = mount.querySelector("#map-side");
   const list = state.selectedRegion
-    ? state.problems.filter((p) => p.region === state.selectedRegion)
-    : state.problems;
+    ? state.problems.filter((p) => p.region === state.selectedRegion && !["rejected","withdrawn","resolved"].includes(p.status))
+    : state.problems.filter((p) => !["rejected","withdrawn","resolved"].includes(p.status));
 
   side.innerHTML = `
     <div class="panel-title">

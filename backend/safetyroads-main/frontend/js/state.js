@@ -81,7 +81,7 @@ function problemTitle(p) { return state.lang === "ru" ? p.title_ru : p.title_en;
 function regionCounts() {
   const counts = {};
   for (const p of state.problems) {
-    if (p.status === "rejected" || p.status === "withdrawn") continue;
+    if (p.status === "rejected" || p.status === "withdrawn" || p.status === "resolved") continue;
     counts[p.region] = (counts[p.region] || 0) + 1;
   }
   return counts;
