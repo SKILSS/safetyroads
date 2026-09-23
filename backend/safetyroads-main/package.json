@@ -1,6 +1,6 @@
 {
   "name": "region-watch-server",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "RegionWatch API — user accounts, single admin, server-held DeepSeek key, rate limiting.",
   "main": "server.js",
   "type": "commonjs",

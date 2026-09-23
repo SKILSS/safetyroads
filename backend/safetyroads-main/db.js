@@ -27,6 +27,11 @@ async function initSchema() {
       title_en TEXT NOT NULL,
       image_data TEXT, -- base64 data URL; move to real object storage if volume grows
       ai_verdict TEXT,
+      ai_status TEXT NOT NULL DEFAULT 'not_checked',
+      ai_matches BOOLEAN,
+      ai_confidence NUMERIC,
+      ai_detected TEXT,
+      ai_checked_at TIMESTAMPTZ,
       lat DOUBLE PRECISION,
       lng DOUBLE PRECISION,
       is_road BOOLEAN NOT NULL DEFAULT false, -- true = "whole road is bad", drawn as a red line
@@ -43,6 +48,11 @@ async function initSchema() {
     ALTER TABLE problems ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION;
     ALTER TABLE problems ADD COLUMN IF NOT EXISTS is_road BOOLEAN NOT NULL DEFAULT false;
     ALTER TABLE problems ADD COLUMN IF NOT EXISTS route JSONB;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS ai_status TEXT NOT NULL DEFAULT 'not_checked';
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS ai_matches BOOLEAN;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS ai_confidence NUMERIC;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS ai_detected TEXT;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS ai_checked_at TIMESTAMPTZ;
 
     -- Gas stations. Locations can be bulk-imported (see scripts/sync-stations.js,
     -- which pulls them from OpenStreetMap/Overpass — free, no key needed).

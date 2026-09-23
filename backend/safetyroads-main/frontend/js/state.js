@@ -81,7 +81,7 @@ function problemTitle(p) { return state.lang === "ru" ? p.title_ru : p.title_en;
 function regionCounts() {
   const counts = {};
   for (const p of state.problems) {
-    if (p.status === "rejected") continue;
+    if (p.status === "rejected" || p.status === "withdrawn") continue;
     counts[p.region] = (counts[p.region] || 0) + 1;
   }
   return counts;
@@ -108,6 +108,12 @@ async function adminSetStatus(id, status) {
   await loadProblems();
   render();
 }
+async function withdrawProblem(id) {
+  await api(`/problems/${id}/withdraw`, { method: "PATCH" });
+  await loadProblems();
+  render();
+}
+
 async function adminDeleteProblem(id) {
   await api(`/problems/${id}`, { method: "DELETE" }).catch(() => {});
   await loadProblems();

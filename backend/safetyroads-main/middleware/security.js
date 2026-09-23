@@ -30,5 +30,13 @@ const writeLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-module.exports = { apiLimiter, authLimiter, authSlowDown, writeLimiter };
+const aiLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'AI checks are temporarily limited. Try again later.' },
+});
+
+module.exports = { apiLimiter, authLimiter, authSlowDown, writeLimiter, aiLimiter };
 

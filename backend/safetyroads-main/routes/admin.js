@@ -9,7 +9,7 @@ const router = express.Router();
 router.get("/settings", requireAdmin, async (req, res) => {
   const row = (await pool.query("SELECT deepseek_api_key, price_api_key, price_api_url FROM app_settings WHERE id = 1")).rows[0];
   res.json({
-    deepseekKeySet: !!row?.deepseek_api_key,
+    deepseekKeySet: !!row?.deepseek_api_key || !!process.env.DEEPSEEK_API_KEY,
     priceApiKeySet: !!row?.price_api_key,
     priceApiUrl: row?.price_api_url || "",
   });
@@ -30,7 +30,7 @@ router.put("/settings", requireAdmin, async (req, res) => {
   await pool.query(`UPDATE app_settings SET ${sets.join(", ")} WHERE id = 1`, values);
   const row = (await pool.query("SELECT deepseek_api_key, price_api_key, price_api_url FROM app_settings WHERE id = 1")).rows[0];
   res.json({
-    deepseekKeySet: !!row?.deepseek_api_key,
+    deepseekKeySet: !!row?.deepseek_api_key || !!process.env.DEEPSEEK_API_KEY,
     priceApiKeySet: !!row?.price_api_key,
     priceApiUrl: row?.price_api_url || "",
   });

@@ -874,7 +874,6 @@
                             <div class="navigator-subtitle" id="navSubtitle">Маршрут с учётом состояния дорог</div>
                         </div>
                         <button id="locateMeBtn" class="nav-icon-btn" type="button" title="Моё местоположение" aria-label="Моё местоположение">📍</button>
-                        <button id="navVoiceBtn" class="nav-voice-btn active" type="button" aria-pressed="true">🔊 Голос</button>
                     </div>
 
                     <div class="nav-input-row">
@@ -1104,7 +1103,7 @@
                 ru: {
                     tabs: { map:'🗺️ Карта', problems:'⚠️ Проблемы', settings:'⚙️ Настройки' },
                     navigator:'🧭 Навигатор', navSubtitle:'Маршрут с учётом состояния дорог',
-                    myLocation:'Моё местоположение', myGeo:'Моя геолокация', onMap:'📍 На карте', voiceOn:'🔊 Голос', voiceOff:'🔇 Голос', voiceEnabled:'Голосовые подсказки включены.', voiceDisabled:'Голосовые подсказки выключены.', voiceUnsupported:'Голосовые подсказки не поддерживаются этим браузером.', voiceNext:'Следующая подсказка', voiceArrival:'Вы прибыли в пункт назначения.',
+                    myLocation:'Моё местоположение', myGeo:'Моя геолокация', onMap:'📍 На карте',
                     destination:'Куда ехать? Например: Казань, Кремль', go:'Поехали',
                     navStartHint:'Введите адрес отправления или выберите точку на карте.',
                     navDestHint:'Введите адрес назначения или выберите точку на карте.',
@@ -1155,7 +1154,7 @@
                 en: {
                     tabs: { map:'🗺️ Map', problems:'⚠️ Problems', settings:'⚙️ Settings' },
                     navigator:'🧭 Navigator', navSubtitle:'Routing with road-condition awareness',
-                    myLocation:'My location', myGeo:'My location', onMap:'📍 On map', voiceOn:'🔊 Voice', voiceOff:'🔇 Voice', voiceEnabled:'Voice guidance enabled.', voiceDisabled:'Voice guidance disabled.', voiceUnsupported:'Voice guidance is not supported by this browser.', voiceNext:'Next instruction', voiceArrival:'You have arrived at your destination.',
+                    myLocation:'My location', myGeo:'My location', onMap:'📍 On map',
                     destination:'Where to? Example: Kazan, Kremlin', go:'Go',
                     navStartHint:'Enter a start address or choose a point on the map.',
                     navDestHint:'Enter a destination or choose a point on the map.',
@@ -1274,7 +1273,6 @@
                 document.querySelectorAll('.theme-btn[data-theme="light"]').forEach(el => el.textContent = s.light);
                 document.querySelectorAll('.lang-btn').forEach(el => el.classList.toggle('active', el.dataset.lang === lang));
                 document.querySelectorAll('.nav-mode').forEach(b => { if (LANG[lang][b.dataset.routeMode]) b.textContent = LANG[lang][b.dataset.routeMode]; });
-                navVoiceUpdateButton();
 
                 // Static labels in the three pages.
                 const first = (sel) => document.querySelector(sel);
@@ -1711,7 +1709,20 @@
                 const category = document.getElementById('problemCategory').value;
                 const file = document.getElementById('problemFile').files[0];
 
-                if (!token) { alert(lang === 'en' ? 'Please sign in first (Settings tab).' : 'Сначала войдите в аккаунт (вкладка «Настройки»).'); return; }
+                if (!token) {
+                    const message = lang === 'en'
+                        ? 'Please sign in first. Opening Settings…'
+                        : 'Сначала войдите в аккаунт. Открываю «Настройки»…';
+                    alert(message);
+                    switchTab('settings');
+                    setTimeout(() => {
+                        const account = document.querySelector('.register-box');
+                        if (account) account.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        const email = document.getElementById('regEmail');
+                        if (email) email.focus();
+                    }, 80);
+                    return;
+                }
                 if (!title) { alert(lang === 'en' ? 'Enter a problem title.' : 'Укажите заголовок проблемы.'); return; }
                 if (!roadMode && roadPoints.length === 0 && !selectedPoint) { alert(lang === 'en' ? 'Choose a location on the map or mark the whole road.' : 'Нажмите «Выбрать место на карте» или «Обозначить всю дорогу».'); return; }
 
@@ -1852,7 +1863,14 @@
                 document.getElementById('logoutButton').style.display = token ? 'block' : 'none';
                 document.getElementById('userStatusBox').innerText = lang === 'en' ? '👤 You: ' + (user ? user.email : tr('guest')) : '👤 Вы: ' + (user ? user.email : tr('guest'));
 
-                document.getElementById('submitProblem').disabled = !token;
+                const submitProblemBtn = document.getElementById('submitProblem');
+                if (submitProblemBtn) {
+                    // Keep the button clickable for guests so it can guide them to login.
+                    submitProblemBtn.disabled = false;
+                    submitProblemBtn.title = token
+                        ? ''
+                        : (lang === 'en' ? 'Sign in to submit a report' : 'Войдите, чтобы отправить обращение');
+                }
 
                 const adminCard = document.getElementById('adminCard');
                 adminCard.style.display = isAdmin() ? 'block' : 'none';
@@ -1887,114 +1905,6 @@
             let navSuggestTimers = { start: null, destination: null };
             let navSuggestControllers = { start: null, destination: null };
             const navSuggestCache = new Map();
-            let navVoiceEnabled = localStorage.getItem('navVoiceEnabled') !== '0';
-            let navVoiceSteps = [];
-            let navVoiceStepIndex = 0;
-            let navVoiceWatchId = null;
-            let navVoiceLastSpoken = '';
-
-            function navVoiceSupported() {
-                return typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
-            }
-
-            function navVoiceUpdateButton() {
-                const btn = document.getElementById('navVoiceBtn');
-                if (!btn) return;
-                btn.textContent = navVoiceEnabled ? tr('voiceOn') : tr('voiceOff');
-                btn.classList.toggle('active', navVoiceEnabled);
-                btn.classList.toggle('muted', !navVoiceEnabled);
-                btn.setAttribute('aria-pressed', String(navVoiceEnabled));
-                btn.title = navVoiceEnabled ? tr('voiceEnabled') : tr('voiceDisabled');
-            }
-
-            function navVoiceStop() {
-                if (navVoiceSupported()) window.speechSynthesis.cancel();
-            }
-
-            function navVoiceSpeak(text) {
-                if (!navVoiceEnabled || !navVoiceSupported() || !text) return;
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = lang === 'en' ? 'en-US' : 'ru-RU';
-                utterance.rate = 0.95;
-                utterance.pitch = 1;
-                navVoiceStop();
-                window.speechSynthesis.speak(utterance);
-                navVoiceLastSpoken = text;
-            }
-
-            function navVoiceStepText(step) {
-                const t = navStepText(step);
-                const distance = navFormatDistance(step.distance || 0);
-                return `${t.action}. ${t.road}. ${distance}.`;
-            }
-
-            function navVoicePrepare(route) {
-                navVoiceSteps = [];
-                navVoiceStepIndex = 0;
-                navVoiceLastSpoken = '';
-                (route?.legs || []).forEach(leg => (leg.steps || []).forEach(step => navVoiceSteps.push(step)));
-                if (!navVoiceSteps.length) return;
-                if (navVoiceEnabled) {
-                    navVoiceSpeak(navVoiceStepText(navVoiceSteps[0]));
-                    navVoiceStepIndex = 1;
-                }
-                navVoiceStartWatch();
-            }
-
-            function navVoiceStepPoint(step) {
-                const loc = step?.maneuver?.location;
-                if (!Array.isArray(loc) || loc.length < 2) return null;
-                return [Number(loc[1]), Number(loc[0])];
-            }
-
-            function navVoiceStartWatch() {
-                if (navVoiceWatchId !== null || !navVoiceSteps.length || !navigator.geolocation) return;
-                navVoiceWatchId = navigator.geolocation.watchPosition(navVoiceOnPosition, () => {}, { enableHighAccuracy:true, maximumAge:5000, timeout:10000 });
-            }
-
-            function navVoiceStopWatch() {
-                if (navVoiceWatchId !== null && navigator.geolocation) navigator.geolocation.clearWatch(navVoiceWatchId);
-                navVoiceWatchId = null;
-            }
-
-            function navVoiceOnPosition(position) {
-                if (!navVoiceEnabled || !navVoiceSteps.length) return;
-                const here = [Number(position.coords.latitude), Number(position.coords.longitude)];
-                const step = navVoiceSteps[navVoiceStepIndex];
-                if (!step) return;
-                const point = navVoiceStepPoint(step);
-                if (!point) { navVoiceStepIndex++; return; }
-                const distance = navHaversine(here, point);
-                const threshold = Math.max(45, Math.min(120, Number(step.distance || 0) * 0.35));
-                if (distance <= threshold) {
-                    navVoiceSpeak(navVoiceStepText(step));
-                    navVoiceStepIndex++;
-                    if (navVoiceStepIndex >= navVoiceSteps.length) {
-                        setTimeout(() => navVoiceSpeak(tr('voiceArrival')), 800);
-                        navVoiceStopWatch();
-                    }
-                }
-            }
-
-            function navVoiceToggle() {
-                if (!navVoiceSupported()) {
-                    navSetStatus(tr('voiceUnsupported'), 'error');
-                    navVoiceEnabled = false;
-                    localStorage.setItem('navVoiceEnabled', '0');
-                    navVoiceUpdateButton();
-                    return;
-                }
-                navVoiceEnabled = !navVoiceEnabled;
-                localStorage.setItem('navVoiceEnabled', navVoiceEnabled ? '1' : '0');
-                if (!navVoiceEnabled) navVoiceStop();
-                else if (navRoutes[navActiveMode]) {
-                    const step = navVoiceSteps[Math.max(0, navVoiceStepIndex - 1)] || navVoiceSteps[0];
-                    if (step) navVoiceSpeak(navVoiceStepText(step));
-                    navVoiceStartWatch();
-                }
-                navVoiceUpdateButton();
-                navSetStatus(navVoiceEnabled ? tr('voiceEnabled') : tr('voiceDisabled'), 'ok');
-            }
 
             function navSetStatus(text, type = '') {
                 const el = document.getElementById('navStatus');
@@ -2361,7 +2271,6 @@
                     document.querySelectorAll('.nav-mode').forEach(b => b.classList.toggle('active', b.dataset.routeMode === navActiveMode));
                     navDrawRoute(navRoutes.fast, navActiveMode);
                     navShowSummary(navRoutes.fast);
-                    navVoicePrepare(navRoutes.fast);
 
                     map.fitBounds(L.latLngBounds([[start.lat,start.lng],[dest.lat,dest.lng]]).pad(0.18));
                     navSetStatus(`${tr('routeBuilt')} ${dest.label}`, 'ok');
@@ -2377,7 +2286,6 @@
                 });
                 navDrawRoute(navRoutes[mode], mode);
                 navShowSummary(navRoutes[mode]);
-                navVoicePrepare(navRoutes[mode]);
                 const label = mode === 'good' ? tr('goodDesc') : mode === 'bad' ? tr('badDesc') : tr('fastDesc');
                 navSetStatus(label, 'ok');
             }
@@ -2385,7 +2293,6 @@
             function initNavigator() {
                 const go = document.getElementById('buildRouteBtn');
                 const locate = document.getElementById('locateMeBtn');
-                const voice = document.getElementById('navVoiceBtn');
                 const useLoc = document.getElementById('useMyLocationBtn');
                 const start = document.getElementById('navStart');
                 const destination = document.getElementById('navDestination');
@@ -2396,7 +2303,6 @@
                 go.onclick = navBuildRoute;
                 locate.onclick = navUseMyLocation;
                 useLoc.onclick = navUseMyLocation;
-                if (voice) { voice.onclick = navVoiceToggle; navVoiceUpdateButton(); }
 
                 const wireInput = (input, kind) => {
                     input.oninput = () => {

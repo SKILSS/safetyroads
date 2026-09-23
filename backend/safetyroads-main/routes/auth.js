@@ -26,7 +26,7 @@ router.post("/register", async (req, res) => {
     [email.toLowerCase(), hash]
   );
   const user = result.rows[0];
-  res.status(201).json({ token: issueToken(user), user: { email: user.email, role: user.role } });
+  res.status(201).json({ token: issueToken(user), user: { id: user.id, email: user.email, role: user.role } });
 });
 
 router.post("/login", async (req, res) => {
@@ -38,7 +38,7 @@ router.post("/login", async (req, res) => {
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
     return res.status(401).json({ error: "Invalid email or password." });
   }
-  res.json({ token: issueToken(user), user: { email: user.email, role: user.role } });
+  res.json({ token: issueToken(user), user: { id: user.id, email: user.email, role: user.role } });
 });
 
 module.exports = router;
