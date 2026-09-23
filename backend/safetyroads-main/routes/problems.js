@@ -39,11 +39,12 @@ router.post("/", requireAuth, writeLimiter, async (req, res) => {
 
   let aiVerdict = null;
   const settings = (await pool.query("SELECT deepseek_api_key FROM app_settings WHERE id = 1")).rows[0];
-  if (settings?.deepseek_api_key && imageDataUrl) {
+  const deepseekApiKey = process.env.DEEPSEEK_API_KEY || settings?.deepseek_api_key;
+  if (deepseekApiKey && imageDataUrl) {
     try {
       const aiRes = await fetch("https://api.deepseek.com/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${settings.deepseek_api_key}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${deepseekApiKey}` },
         body: JSON.stringify({
           model: "deepseek-v4-flash-vision-exp",
           messages: [{
