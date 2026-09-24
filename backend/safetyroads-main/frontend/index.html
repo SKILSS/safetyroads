@@ -1080,7 +1080,7 @@
             <h4 id="withdrawTitle">Хотите ли вы точно убрать?</h4>
             <p id="withdrawText">Обращение будет помечено как отозванное.</p>
             <div class="withdraw-actions">
-                <button type="button" id="withdrawCancel">Отменить</button>
+                <button type="button" id="withdrawCancel">Отклонить</button>
                 <button type="button" id="withdrawConfirm" class="danger">Подтвердить</button>
             </div>
         </div>
@@ -1161,7 +1161,7 @@
                     tabs: { map:'🗺️ Карта', problems:'⚠️ Проблемы', settings:'⚙️ Настройки' },
                     navigator:'🧭 Навигатор', navSubtitle:'Маршрут с учётом состояния дорог',
                     voiceOn:'🔊 Вкл.', voiceOff:'🔇 Выкл.', voiceLabel:'🔊 Голосовое сопровождение', voiceEnabled:'Голосовое сопровождение включено', voiceDisabled:'Голосовое сопровождение выключено', voiceRoute:'Маршрут построен. ', voiceNext:'Далее: ', voiceArrival:'Вы прибыли в пункт назначения.',
-                    withdrawSwipe:'Свайпните вправо, чтобы убрать', withdrawTitle:'Точно ли вы хотите удалить?', withdrawText:'Обращение будет помечено как удалённое и останется в истории.', withdrawCancel:'Отменить', withdrawConfirm:'Подтвердить', withdrawSuccess:'Обращение удалено.', withdrawError:'Не удалось удалить обращение.', markFixed:'Проблема исправлена', resolveTitle:'Проблема исправлена?', resolveText:'Загрузите фото, подтверждающее исправление. ИИ сравнит его с исходной проблемой.', resolveNote:'Что было исправлено? (необязательно)', resolveCheck:'Проверить ИИ', resolveChecking:'🤖 ИИ проверяет, действительно ли проблема исправлена…', resolveAccepted:'ИИ подтвердил исправление. Проблема убрана с карты.', resolveRejected:'ИИ не смог подтвердить, что проблема исправлена. Она останется на карте.', resolveError:'Не удалось проверить исправление.', resolveNeedPhoto:'Загрузите фото исправленной проблемы.' ,
+                    withdrawSwipe:'Свайпните вправо, чтобы убрать', withdrawTitle:'Точно ли вы хотите удалить?', withdrawText:'Обращение будет помечено как удалённое и останется в истории.', withdrawCancel:'Отменить', withdrawDecline:'Отклонить', withdrawConfirm:'Подтвердить', withdrawSuccess:'Обращение удалено.', withdrawError:'Не удалось удалить обращение.', markFixed:'Проблема исправлена', resolveTitle:'Проблема исправлена?', resolveText:'Загрузите фото, подтверждающее исправление. ИИ сравнит его с исходной проблемой.', resolveNote:'Что было исправлено? (необязательно)', resolveCheck:'Проверить ИИ', resolveChecking:'🤖 ИИ проверяет, действительно ли проблема исправлена…', resolveAccepted:'ИИ подтвердил исправление. Проблема убрана с карты.', resolveRejected:'ИИ не смог подтвердить, что проблема исправлена. Она останется на карте.', resolveError:'Не удалось проверить исправление.', resolveNeedPhoto:'Загрузите фото исправленной проблемы.' ,
                     myLocation:'Моё местоположение', myGeo:'Моя геолокация', onMap:'📍 На карте',
                     destination:'Куда ехать? Например: Казань, Кремль', go:'Поехали',
                     navStartHint:'Введите адрес отправления или выберите точку на карте.',
@@ -1214,7 +1214,7 @@
                     tabs: { map:'🗺️ Map', problems:'⚠️ Problems', settings:'⚙️ Settings' },
                     navigator:'🧭 Navigator', navSubtitle:'Routing with road-condition awareness',
                     voiceOn:'🔊 On', voiceOff:'🔇 Off', voiceLabel:'🔊 Voice guidance', voiceEnabled:'Voice guidance enabled', voiceDisabled:'Voice guidance disabled', voiceRoute:'Route built. ', voiceNext:'Next: ', voiceArrival:'You have arrived at your destination.',
-                    withdrawSwipe:'Swipe right to remove', withdrawTitle:'Are you sure you want to delete it?', withdrawText:'The report will be marked as deleted and kept in history.', withdrawCancel:'Cancel', withdrawConfirm:'Confirm', withdrawSuccess:'Report deleted.', withdrawError:'Could not delete the report.', markFixed:'Problem fixed', resolveTitle:'Has the problem been fixed?', resolveText:'Upload a photo showing the fix. AI will compare it with the original problem.', resolveNote:'What was fixed? (optional)', resolveCheck:'Check with AI', resolveChecking:'🤖 AI is checking whether the problem was actually fixed…', resolveAccepted:'AI confirmed the fix. The problem was removed from the map.', resolveRejected:'AI could not confirm that the problem was fixed. It will stay on the map.', resolveError:'Could not verify the fix.', resolveNeedPhoto:'Upload a photo of the fixed problem.' ,
+                    withdrawSwipe:'Swipe right to remove', withdrawTitle:'Are you sure you want to delete it?', withdrawText:'The report will be marked as deleted and kept in history.', withdrawCancel:'Cancel', withdrawDecline:'Decline', withdrawConfirm:'Confirm', withdrawSuccess:'Report deleted.', withdrawError:'Could not delete the report.', markFixed:'Problem fixed', resolveTitle:'Has the problem been fixed?', resolveText:'Upload a photo showing the fix. AI will compare it with the original problem.', resolveNote:'What was fixed? (optional)', resolveCheck:'Check with AI', resolveChecking:'🤖 AI is checking whether the problem was actually fixed…', resolveAccepted:'AI confirmed the fix. The problem was removed from the map.', resolveRejected:'AI could not confirm that the problem was fixed. It will stay on the map.', resolveError:'Could not verify the fix.', resolveNeedPhoto:'Upload a photo of the fixed problem.' ,
                     myLocation:'My location', myGeo:'My location', onMap:'📍 On map',
                     destination:'Where to? Example: Kazan, Kremlin', go:'Go',
                     navStartHint:'Enter a start address or choose a point on the map.',
@@ -1783,7 +1783,8 @@
                         : (p.lat!=null&&p.lng!=null)
                             ? `${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}`
                             : (lang==='en' ? '📍 coordinates not specified' : '📍 координаты не указаны');
-                    const isOwner = !!user && Number(p.created_by) === Number(user.id) && !['withdrawn','rejected','resolved'].includes(status);
+                    const myId = currentUserId();
+                    const isOwner = myId != null && Number(p.created_by) === myId && !['withdrawn','rejected','resolved'].includes(status);
                     div.innerHTML=`
                         ${isOwner ? `<button type="button" class="problem-delete-btn" aria-label="${navEscape(tr('deleteQuestion'))}" title="${navEscape(tr('deleteQuestion'))}">✕</button>` : ''}
                         <div class="problem-item ${isOwner ? 'swipeable' : ''}" data-problem-id="${p.id}">
@@ -1889,6 +1890,15 @@
                 });
             }
 
+            function currentUserId() {
+                if (user && user.id != null && !isNaN(Number(user.id))) return Number(user.id);
+                try {
+                    if (!token) return null;
+                    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+                    return payload && payload.id != null ? Number(payload.id) : null;
+                } catch (e) { return null; }
+            }
+
             let pendingWithdrawId = null;
             let pendingWithdrawWrapper = null;
             function openWithdrawModal(id, wrapper) {
@@ -1898,7 +1908,7 @@
                 if (!overlay) return;
                 document.getElementById('withdrawTitle').textContent = tr('withdrawTitle');
                 document.getElementById('withdrawText').textContent = tr('withdrawText');
-                document.getElementById('withdrawCancel').textContent = tr('withdrawCancel');
+                document.getElementById('withdrawCancel').textContent = tr('withdrawDecline');
                 document.getElementById('withdrawConfirm').textContent = tr('withdrawConfirm');
                 overlay.classList.add('open');
                 overlay.setAttribute('aria-hidden','false');

@@ -266,3 +266,7 @@ textarea, select, input[type="text"], input[type="password"] {
 .problem-delete-btn:hover { background:#ef4b4b !important; }
 .problem-delete-btn:active { transform:scale(.94) !important; }
 .swipe-delete-action, .swipe-hint { display:none !important; }
+
+/* v12: delete X sits at the right edge; badge/title leave room for it */
+.problem-swipe-wrap .problem-item .title { padding-right: 4px; }
+.problem-swipe-wrap .problem-content { padding-right: 52px !important; }
