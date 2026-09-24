@@ -257,3 +257,12 @@ textarea, select, input[type="text"], input[type="password"] {
 .problem-delete-btn:hover { background:#e04a4a; }
 .problem-delete-btn:active { transform:scale(.96); }
 .swipe-delete-action, .swipe-hint { display:none !important; }
+
+/* v11: always-visible delete button for the owner; no swipe dependency */
+.problem-swipe-wrap { position:relative !important; overflow:visible !important; }
+.problem-swipe-wrap .problem-item { position:relative !important; transform:none !important; transition:none !important; }
+.problem-content { min-width:0; padding-right:48px !important; }
+.problem-delete-btn { position:absolute !important; top:8px !important; right:8px !important; width:36px !important; height:36px !important; min-width:36px !important; padding:0 !important; margin:0 !important; display:flex !important; visibility:visible !important; opacity:1 !important; align-items:center !important; justify-content:center !important; border:0 !important; border-radius:9px !important; background:#d43f3f !important; color:#fff !important; font-size:20px !important; line-height:1 !important; font-weight:900 !important; cursor:pointer !important; z-index:999 !important; box-shadow:0 2px 8px rgba(0,0,0,.28) !important; }
+.problem-delete-btn:hover { background:#ef4b4b !important; }
+.problem-delete-btn:active { transform:scale(.94) !important; }
+.swipe-delete-action, .swipe-hint { display:none !important; }

@@ -67,7 +67,7 @@ function renderProblemsTab(mount) {
   const submitBtn = mount.querySelector("#submit-btn");
   if (submitBtn) submitBtn.onclick = () => submitProblem(mount);
 
-  wireSwipeDelete(mount);
+  wireDeleteButtons(mount);
   wireFixButtons(mount);
   wireDeleteConfirmation(mount);
   wireAdminActions(mount);
@@ -80,7 +80,8 @@ function problemCardHtml(p, s) {
     <li class="problem-swipe-wrap" data-problem-id="${p.id}">
       ${canWithdraw ? `<button class="swipe-delete-action" data-delete-id="${p.id}" aria-label="${s.confirm}">✕</button>` : ""}
       <div class="problem-item swipe-card" data-swipe-id="${p.id}">
-        <div style="flex:1">
+        ${canWithdraw ? `<button type="button" class="problem-delete-btn" data-delete-id="${p.id}" aria-label="${s.deleteQuestion}">✕</button>` : ""}
+        <div class="problem-content" style="flex:1">
           <div class="problem-item-title">${escapeHtml(problemTitle(p))}</div>
           <div class="problem-item-meta">
             <span class="dot" style="display:inline-block;background:${severityColor(p.severity)}"></span>
@@ -90,7 +91,6 @@ function problemCardHtml(p, s) {
           ${p.ai_status === "error" ? `<div class="warn-text" style="margin-top:4px">⚠️ ${s.aiCheckError}</div>` : ""}
           <div class="problem-actions-row">
             <button class="admin-btn fix-btn" data-id="${p.id}">${s.markFixed}</button>
-            ${canWithdraw ? `<span class="swipe-hint">${s.swipeRightHint}</span>` : ""}
             ${adminActionsHtml(p)}
           </div>
         </div>
@@ -122,30 +122,12 @@ function handleImageFile(input, callback, s) {
   reader.readAsDataURL(file);
 }
 
-function wireSwipeDelete(mount) {
-  mount.querySelectorAll(".swipe-card").forEach((card) => {
-    const wrap = card.closest(".problem-swipe-wrap");
-    if (!wrap.querySelector(".swipe-delete-action")) return;
-    let startX = 0, startY = 0, dragging = false;
-    const reset = () => { card.style.transform = "translateX(0)"; swipeState[wrap.dataset.problemId] = false; };
-    const open = () => { card.style.transform = "translateX(92px)"; swipeState[wrap.dataset.problemId] = true; };
-    card.addEventListener("touchstart", (e) => {
-      const t0 = e.touches[0]; startX = t0.clientX; startY = t0.clientY; dragging = true;
-    }, { passive: true });
-    card.addEventListener("touchmove", (e) => {
-      if (!dragging) return;
-      const t0 = e.touches[0]; const dx = t0.clientX - startX; const dy = Math.abs(t0.clientY - startY);
-      if (dy > 30) return;
-      if (dx > 0) card.style.transform = `translateX(${Math.min(92, dx)}px)`;
-    }, { passive: true });
-    card.addEventListener("touchend", (e) => {
-      dragging = false;
-      const endX = e.changedTouches[0].clientX;
-      if (endX - startX >= 55) open(); else reset();
-    });
-    wrap.querySelector(".swipe-delete-action").onclick = (e) => {
+function wireDeleteButtons(mount) {
+  mount.querySelectorAll(".problem-delete-btn").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.preventDefault();
       e.stopPropagation();
-      openDeleteConfirmation(mount, Number(wrap.dataset.problemId));
+      openDeleteConfirmation(mount, Number(btn.dataset.deleteId));
     };
   });
 }
