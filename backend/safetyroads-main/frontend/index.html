@@ -679,9 +679,10 @@
         .voice-toggle { border:1px solid #3e5570; border-radius:30px; padding:7px 13px; background:#182535; color:#dce6f0; cursor:pointer; font-weight:700; }
         .voice-toggle.on { background:#f5a623; color:#111; }
         .problem-swipe-wrap { position:relative; overflow:hidden; border-radius:14px; margin-bottom:12px; }
-        .problem-swipe-wrap .problem-item { margin-bottom:0; position:relative; z-index:2; transition:transform .18s ease; touch-action:pan-y; }
+        .problem-swipe-wrap .problem-item { margin-bottom:0; position:relative; z-index:2; transition:transform .18s ease; touch-action:pan-y; cursor:grab; user-select:none; -webkit-user-select:none; }
+        .problem-swipe-wrap .problem-item.dragging { cursor:grabbing; transition:none; }
         .problem-swipe-wrap .problem-content { min-width:0; }
-        .swipe-delete-action { position:absolute; inset:0 auto 0 0; width:92px; display:flex; align-items:center; justify-content:center; background:#c43d3d; color:#fff; font-weight:800; cursor:pointer; }
+        .swipe-delete-action { position:absolute; inset:0 auto 0 0; width:92px; height:100%; display:flex; align-items:center; justify-content:center; background:#c43d3d; color:#fff; font-weight:900; font-size:1.35rem; cursor:pointer; border:0; padding:0; z-index:1; }
         .swipe-hint { font-size:.65rem; color:#7188a3; margin-top:7px; }
         .withdraw-overlay { position:fixed; inset:0; background:rgba(0,0,0,.62); display:none; align-items:center; justify-content:center; z-index:10000; padding:20px; }
         .withdraw-overlay.open { display:flex; }
@@ -1556,11 +1557,38 @@
             }
 
             // ===== ЗАГРУЗКА ДАННЫХ =====
+            function activeProblemSignature(list) {
+                return (list || [])
+                    .filter(p => !['rejected','withdrawn','resolved'].includes(String(p.status || '').toLowerCase()))
+                    .map(p => [p.id, String(p.status || '').toLowerCase(), p.lat, p.lng, p.is_road, Array.isArray(p.route) ? p.route.length : 0].join('|'))
+                    .sort()
+                    .join('§');
+            }
+
+            function invalidateNavigatorProblemCache() {
+                navBadGridCache = null;
+                navBadGridSignature = '';
+            }
+
+            async function refreshNavigatorAfterProblemChange(previousActiveSignature) {
+                const nextActiveSignature = activeProblemSignature(problems);
+                invalidateNavigatorProblemCache();
+                if (previousActiveSignature === nextActiveSignature) return;
+                if (navRoutes.fast && navStartPoint && navDestinationPoint) {
+                    await navBuildRoute();
+                } else {
+                    navRoutes = { fast: null, good: null, bad: null };
+                    navClearLayers();
+                }
+            }
+
             async function loadProblems() {
                 try {
+                    const previousActiveSignature = activeProblemSignature(problems);
                     problems = await apiRequest('/problems');
                     renderProblems();
                     renderMapMarkers();
+                    await refreshNavigatorAfterProblemChange(previousActiveSignature);
                     document.getElementById('consoleMessage').innerText = lang === 'en' ? `✅ Loaded ${problems.length} reports` : `✅ Загружено ${problems.length} проблем`;
                 } catch (err) {
                     document.getElementById('consoleMessage').innerText = lang === 'en' ? `❌ Failed to load reports: ${err.message}` : `❌ Ошибка загрузки проблем: ${err.message}`;
@@ -1692,7 +1720,7 @@
                     problemsLayer.clearLayers();
                     problemsPointsLayer.clearLayers();
                     problems.forEach((p) => {
-                        if (p.status === 'rejected' || p.status === 'withdrawn' || p.status === 'resolved') return;
+                        if (['rejected','withdrawn','resolved'].includes(String(p.status || '').toLowerCase())) return;
                         if (p.is_road && Array.isArray(p.route) && p.route.length >= 2) {
                             const line = L.polyline(p.route, { color: '#e53935', weight: 7, opacity: 0.82, interactive: true });
                             line.bindPopup(`<b>🚧 ${navEscape(lang === 'en' ? (p.title_en || p.title_ru || 'Bad road') : (p.title_ru || 'Плохая дорога'))}</b><br/>📍 ${navEscape(displayRegion(p.region || ''))}<br/>📊 ${statusLabel(p.status)}
@@ -1740,7 +1768,7 @@
                     container.innerHTML = `<div class="loading">✅ ${tr('noProblems')}</div>`;
                     return;
                 }
-                const visibleProblems = (isAdmin() ? problems : problems.filter(p => !['withdrawn','resolved'].includes(p.status))).filter(p => p.status !== 'resolved').slice(0,50);
+                const visibleProblems = (isAdmin() ? problems : problems.filter(p => !['withdrawn','resolved'].includes(String(p.status || '').toLowerCase()))).filter(p => String(p.status || '').toLowerCase() !== 'resolved').slice(0,50);
                 visibleProblems.forEach((p) => {
                     const div=document.createElement('div');
                     div.className='problem-swipe-wrap';
@@ -1756,7 +1784,7 @@
                             : (lang==='en' ? '📍 coordinates not specified' : '📍 координаты не указаны');
                     const isOwner = !!user && Number(p.created_by) === Number(user.id) && !['withdrawn','rejected','resolved'].includes(status);
                     div.innerHTML=`
-                        ${isOwner ? `<div class="swipe-delete-action" aria-hidden="true">✕</div>` : ''}
+                        ${isOwner ? `<button type="button" class="swipe-delete-action" aria-label="${navEscape(tr('withdrawConfirm'))}">✕</button>` : ''}
                         <div class="problem-item ${isOwner ? 'swipeable' : ''}" data-problem-id="${p.id}">
                             <div class="problem-content">
                                 <div class="title"><span>${navEscape(title)}</span><span class="${badgeClass}">${statusLabel(status)}</span></div>
@@ -1778,37 +1806,80 @@
 
             function wireSwipeWithdraw(wrapper, id) {
                 const card = wrapper.querySelector('.swipeable');
-                if (!card) return;
-                let startX = 0, currentX = 0, dragging = false;
-                const closeOther = () => document.querySelectorAll('.problem-swipe-wrap.swiped').forEach(el => { if (el !== wrapper) el.classList.remove('swiped'); });
-                card.addEventListener('touchstart', e => {
-                    if (!e.touches[0]) return;
-                    startX = e.touches[0].clientX; currentX = 0; dragging = true;
-                    card.style.transition = 'none';
-                }, { passive: true });
-                card.addEventListener('touchmove', e => {
-                    if (!dragging || !e.touches[0]) return;
-                    currentX = Math.max(0, e.touches[0].clientX - startX);
-                    if (currentX > 0) {
-                        e.preventDefault();
-                        card.style.transform = `translateX(${Math.min(92, currentX)}px)`;
+                const action = wrapper.querySelector('.swipe-delete-action');
+                if (!card || !action) return;
+
+                let startX = 0;
+                let startY = 0;
+                let currentX = 0;
+                let dragging = false;
+                let pointerId = null;
+
+                const closeOther = () => {
+                    document.querySelectorAll('.problem-swipe-wrap.swiped').forEach(el => {
+                        if (el !== wrapper) {
+                            el.classList.remove('swiped');
+                            const other = el.querySelector('.swipeable');
+                            if (other) other.style.transform = '';
+                        }
+                    });
+                };
+                const reset = () => {
+                    wrapper.classList.remove('swiped');
+                    card.classList.remove('dragging');
+                    card.style.transform = '';
+                };
+                const open = () => {
+                    closeOther();
+                    wrapper.classList.add('swiped');
+                    card.classList.remove('dragging');
+                    card.style.transform = 'translateX(92px)';
+                };
+
+                card.addEventListener('pointerdown', e => {
+                    if (e.button !== undefined && e.button !== 0) return;
+                    if (e.target.closest('button, input, textarea, a, select')) return;
+                    pointerId = e.pointerId;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    currentX = 0;
+                    dragging = true;
+                    card.classList.add('dragging');
+                    try { card.setPointerCapture(pointerId); } catch (_) {}
+                });
+
+                card.addEventListener('pointermove', e => {
+                    if (!dragging || e.pointerId !== pointerId) return;
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    if (Math.abs(dy) > 30 && Math.abs(dy) > Math.abs(dx)) {
+                        dragging = false;
+                        reset();
+                        return;
                     }
-                }, { passive: false });
-                card.addEventListener('touchend', () => {
-                    if (!dragging) return;
-                    dragging = false;
-                    card.style.transition = '';
-                    if (currentX > 55) {
-                        closeOther();
-                        wrapper.classList.add('swiped');
-                        card.style.transform = 'translateX(92px)';
-                    } else {
-                        wrapper.classList.remove('swiped');
-                        card.style.transform = '';
+                    currentX = Math.max(0, Math.min(92, dx));
+                    if (dx > 0) {
+                        e.preventDefault();
+                        card.style.transform = `translateX(${currentX}px)`;
                     }
                 });
-                const action = wrapper.querySelector('.swipe-delete-action');
-                if (action) action.onclick = e => { e.stopPropagation(); openWithdrawModal(id, wrapper); };
+
+                const finish = e => {
+                    if (!dragging || e.pointerId !== pointerId) return;
+                    dragging = false;
+                    card.classList.remove('dragging');
+                    try { card.releasePointerCapture(pointerId); } catch (_) {}
+                    if (currentX >= 55) open(); else reset();
+                    pointerId = null;
+                };
+                card.addEventListener('pointerup', finish);
+                card.addEventListener('pointercancel', () => { dragging = false; reset(); pointerId = null; });
+
+                action.addEventListener('click', e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openWithdrawModal(id, wrapper);
+                });
             }
 
             let pendingWithdrawId = null;
@@ -1884,8 +1955,14 @@
                         resultBox.innerHTML = `<div style="color:#73d98b;font-weight:700">${tr('resolveAccepted')}</div>`;
                         renderProblems();
                         renderMapMarkers();
-                        navRouteLayers.forEach(layer => { try { map.removeLayer(layer); } catch (_) {} });
-                        navRouteLayers = [];
+                        invalidateNavigatorProblemCache();
+                        navRoutes = { fast: null, good: null, bad: null };
+                        navClearLayers();
+                        // If a route was already displayed, rebuild it immediately so the
+                        // resolved report is no longer considered by the navigator.
+                        if (navStartPoint && navDestinationPoint) {
+                            navBuildRoute();
+                        }
                         setTimeout(closeResolveModal, 900);
                     } else {
                         resultBox.innerHTML = `<div style="color:#ffbd6b;font-weight:700">${tr('resolveRejected')}</div><div style="font-size:.75rem;color:#8da1ba;margin-top:5px;">${navEscape(data.ai_reason || '')} ${data.ai_confidence != null ? '(' + Math.round(Number(data.ai_confidence)*100) + '%)' : ''}</div>`;
@@ -1912,8 +1989,10 @@
                     closeWithdrawModal();
                     if (wrapper) wrapper.remove();
                     renderMapMarkers();
-                    navRouteLayers.forEach(layer => { try { map.removeLayer(layer); } catch (_) {} });
-                    navRouteLayers = [];
+                    invalidateNavigatorProblemCache();
+                    navRoutes = { fast: null, good: null, bad: null };
+                    navClearLayers();
+                    if (navStartPoint && navDestinationPoint) navBuildRoute();
                     document.getElementById('consoleMessage').innerText = '✅ ' + tr('withdrawSuccess');
                 } catch (err) {
                     alert(err.message || tr('withdrawError'));
@@ -2311,7 +2390,8 @@
             function navBadPointCloud() {
                 const cloud = [];
                 (problems || []).forEach(p => {
-                    if (p.status === 'rejected' || p.status === 'withdrawn' || p.status === 'resolved') return;
+                    const status = String(p.status || '').toLowerCase();
+                    if (['rejected','withdrawn','resolved'].includes(status)) return;
                     if (p.is_road && Array.isArray(p.route)) {
                         p.route.forEach(pt => {
                             if (Array.isArray(pt) && pt.length >= 2) cloud.push([Number(pt[0]), Number(pt[1])]);

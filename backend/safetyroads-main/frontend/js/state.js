@@ -130,7 +130,7 @@ function adminActionsHtml(p) {
     </div>`;
 }
 function wireAdminActions(mount) {
-  mount.querySelectorAll(".admin-btn").forEach((btn) => {
+  mount.querySelectorAll(".admin-btn[data-action]").forEach((btn) => {
     btn.onclick = (e) => {
       e.stopPropagation();
       const id = Number(btn.dataset.id);
