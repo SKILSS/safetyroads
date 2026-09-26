@@ -1,7 +1,7 @@
 {
   "name": "region-watch-server",
   "version": "2.1.0",
-  "description": "SafetyRoad API — user accounts, Gemini verification, external road-problem imports and rate limiting.",
+  "description": "SafetyRoad API — user accounts, Gemini verification, external road-problem imports and rate limiting. Daily external sync runs from the Web Service without a separate paid Cron Job.",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {

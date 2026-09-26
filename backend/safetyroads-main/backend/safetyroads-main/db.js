@@ -101,6 +101,17 @@ async function initSchema() {
 
     -- Single-row table: only the admin can ever write to it (see routes/admin.js).
     -- The Gemini key lives here, server-side, never sent to the browser.
+    CREATE TABLE IF NOT EXISTS external_sync_state (
+      sync_key TEXT PRIMARY KEY,
+      last_started_at TIMESTAMPTZ,
+      last_finished_at TIMESTAMPTZ,
+      status TEXT NOT NULL DEFAULT 'never',
+      last_error TEXT
+    );
+    INSERT INTO external_sync_state (sync_key, status)
+      VALUES ('daily_external_problems', 'never')
+      ON CONFLICT (sync_key) DO NOTHING;
+
     CREATE TABLE IF NOT EXISTS app_settings (
       id INTEGER PRIMARY KEY DEFAULT 1,
       gemini_api_key TEXT,

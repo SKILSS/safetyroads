@@ -201,14 +201,93 @@ async function syncRss() {
   return inserted;
 }
 
-async function main() {
+async function syncExternalProblems() {
   await initSchema();
   const osm = await syncOsm();
   const rss = await syncRss();
   const staleOsm = await pool.query(`UPDATE problems SET status='resolved' WHERE source_type='osm' AND status='new' AND source_last_seen_at < now() - interval '14 days'`);
   const staleRss = await pool.query(`UPDATE problems SET status='resolved' WHERE source_type='rss' AND status='new' AND imported_at < now() - make_interval(days => $1)`, [RSS_MAX_AGE_DAYS]);
-  console.log(JSON.stringify({ ok: true, osmInserted: osm, rssInserted: rss, staleOsm: staleOsm.rowCount, staleRss: staleRss.rowCount, finishedAt: new Date().toISOString() }));
-  await pool.end();
+  return { ok: true, osmInserted: osm, rssInserted: rss, staleOsm: staleOsm.rowCount, staleRss: staleRss.rowCount, finishedAt: new Date().toISOString() };
 }
 
-main().catch(async e => { console.error('[external] fatal:', e); try { await pool.end(); } catch {} process.exit(1); });
+const DAILY_SYNC_KEY = 'daily_external_problems';
+const DAILY_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const DAILY_SYNC_CHECK_MS = 60 * 60 * 1000;
+
+async function runExternalSyncIfDue({ force = false } = {}) {
+  await initSchema();
+  const client = await pool.connect();
+  let locked = false;
+  try {
+    const lock = await client.query("SELECT pg_try_advisory_lock(hashtext('safetyroad:daily-external-problems')) AS locked");
+    locked = Boolean(lock.rows[0]?.locked);
+    if (!locked) return { ok: false, skipped: true, reason: 'already-running' };
+
+    const state = await client.query(
+      'SELECT last_finished_at, status FROM external_sync_state WHERE sync_key=$1 FOR UPDATE',
+      [DAILY_SYNC_KEY]
+    );
+    const row = state.rows[0];
+    const lastFinished = row?.last_finished_at ? new Date(row.last_finished_at).getTime() : 0;
+    const due = force || !lastFinished || (Date.now() - lastFinished >= DAILY_SYNC_INTERVAL_MS);
+    if (!due) {
+      return { ok: true, skipped: true, reason: 'not-due', lastFinishedAt: row.last_finished_at };
+    }
+
+    await client.query(
+      `UPDATE external_sync_state
+       SET last_started_at=now(), status='running', last_error=NULL
+       WHERE sync_key=$1`,
+      [DAILY_SYNC_KEY]
+    );
+
+    try {
+      const result = await syncExternalProblems();
+      await client.query(
+        `UPDATE external_sync_state
+         SET last_finished_at=now(), status='success', last_error=NULL
+         WHERE sync_key=$1`,
+        [DAILY_SYNC_KEY]
+      );
+      return { ...result, scheduled: true };
+    } catch (error) {
+      await client.query(
+        `UPDATE external_sync_state
+         SET status='error', last_error=$2
+         WHERE sync_key=$1`,
+        [DAILY_SYNC_KEY, String(error?.message || error).slice(0, 2000)]
+      );
+      throw error;
+    }
+  } finally {
+    if (locked) {
+      try { await client.query("SELECT pg_advisory_unlock(hashtext('safetyroad:daily-external-problems'))"); } catch {}
+    }
+    client.release();
+  }
+}
+
+function startDailyExternalSyncScheduler() {
+  const run = () => runExternalSyncIfDue().then(result => {
+    if (result?.scheduled) console.log('[external] daily sync completed:', result);
+    else if (result?.skipped && result.reason !== 'not-due') console.log('[external] daily sync skipped:', result.reason);
+  }).catch(err => console.error('[external] daily scheduled run failed:', err));
+
+  // Check once after startup, then periodically. If the Web Service sleeps,
+  // the next request/wakeup triggers the same check and catches up when due.
+  run();
+  return setInterval(run, DAILY_SYNC_CHECK_MS);
+}
+
+module.exports = { syncExternalProblems, runExternalSyncIfDue, startDailyExternalSyncScheduler };
+
+if (require.main === module) {
+  syncExternalProblems().then(async result => {
+    console.log(JSON.stringify(result));
+    await pool.end();
+  }).catch(async e => {
+    console.error('[external] fatal:', e);
+    try { await pool.end(); } catch {}
+    process.exit(1);
+  });
+}
