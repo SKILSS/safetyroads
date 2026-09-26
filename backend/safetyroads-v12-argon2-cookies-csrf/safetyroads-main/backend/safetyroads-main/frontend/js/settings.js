@@ -87,7 +87,10 @@ function renderAccountSection(s) {
 }
 function wireAccountSection(mount) {
   const logoutBtn = mount.querySelector("#logout-btn");
-  if (logoutBtn) logoutBtn.onclick = () => setState({ token: null, user: null });
+  if (logoutBtn) logoutBtn.onclick = async () => {
+    try { await api("/auth/logout", { method: "POST" }); } catch {}
+    setState({ token: null, user: null });
+  };
 
   const toggleLink = mount.querySelector("#auth-toggle-link");
   if (toggleLink) toggleLink.onclick = () => { authMode = authMode === "login" ? "register" : "login"; renderSettingsTab(mount); };
@@ -104,7 +107,7 @@ function wireAccountSection(mount) {
           method: "POST",
           body: JSON.stringify({ email, password }),
         });
-        setState({ token: data.token, user: data.user });
+        setState({ token: true, user: data.user });
       } catch (err) {
         msg.textContent = err.message || s.authError;
       }

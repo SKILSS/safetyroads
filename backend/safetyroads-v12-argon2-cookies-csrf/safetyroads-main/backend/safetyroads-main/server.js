@@ -1,9 +1,20 @@
-require("dotenv").config();
+const fs = require("fs");
 const path = require("path");
+const dotenv = require("dotenv");
+
+// Render Secret Files are available at /etc/secrets/<filename>.
+// Load them before normal .env values; never print their contents.
+const secretFiles = ["/etc/secrets/safetyroads.env", path.join(process.cwd(), "safetyroads.env")];
+for (const secretFile of secretFiles) {
+  if (fs.existsSync(secretFile)) dotenv.config({ path: secretFile, override: false });
+}
+dotenv.config({ override: false });
 const express = require("express");
 const helmet = require("helmet");
 const cors = require("cors");
 const compression = require("compression");
+const cookieParser = require("cookie-parser");
+const crypto = require("crypto");
 
 const { pool, initSchema } = require("./db");
 const { apiLimiter, authLimiter, authSlowDown } = require("./middleware/security");
@@ -20,10 +31,32 @@ app.set("trust proxy", 1); // needed behind Render/Railway/Cloudflare for real c
 
 app.use(helmet({ contentSecurityPolicy: false })); // CSP off by default so the existing frontend's inline script/CDN d3 still work; tighten later if you want
 app.use(compression());
+app.use(cookieParser());
+
+// CSRF double-submit token. The auth session itself remains HttpOnly.
+// SameSite=Strict blocks cross-site cookie sending; the header adds defense in depth.
+app.use((req, res, next) => {
+  let token = req.cookies.csrf_token;
+  if (!token) {
+    token = crypto.randomBytes(32).toString("hex");
+    res.cookie("csrf_token", token, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+  }
+  if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+    const sent = req.get("X-CSRF-Token");
+    if (!sent || sent !== token) return res.status(403).json({ error: "CSRF validation failed." });
+  }
+  next();
+});
 app.use(express.json({ limit: "3mb" })); // covers a base64 photo without allowing huge payload floods
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(",").filter(Boolean);
-app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : true, credentials: false }));
+app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : true, credentials: true }));
 
 app.use("/api", apiLimiter);
 app.use("/api/auth/login", authLimiter, authSlowDown);

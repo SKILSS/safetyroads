@@ -1,7 +1,7 @@
 {
   "name": "region-watch-server",
   "version": "2.1.0",
-  "description": "RegionWatch API — user accounts, single admin, server-held DeepSeek key, rate limiting.",
+  "description": "SafetyRoad API — Argon2id passwords, HttpOnly session cookies, CSRF protection, user reports and server-held AI key.",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
@@ -12,7 +12,6 @@
     "sync-prices": "node scripts/sync-prices.js"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -21,7 +20,10 @@
     "express-slow-down": "^2.0.1",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.11.5"
+    "pg": "^8.11.5",
+    "argon2": "^0.41.1",
+    "cookie-parser": "^1.4.7",
+    "bcryptjs": "^2.4.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
