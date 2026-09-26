@@ -2,14 +2,8 @@
 // Reads ADMIN_EMAIL / ADMIN_PASSWORD from .env, creates (or promotes) that
 // user to role='admin'. This is the ONLY way an admin account gets made —
 // the public /register endpoint always creates plain 'user' accounts.
-const fs = require("fs");
-const path = require("path");
-const dotenv = require("dotenv");
-for (const f of ["/etc/secrets/safetyroads.env", path.join(process.cwd(), "safetyroads.env")]) {
-  if (fs.existsSync(f)) dotenv.config({ path: f, override: false });
-}
-dotenv.config({ override: false });
-const argon2 = require("argon2");
+require("dotenv").config();
+const bcrypt = require("bcryptjs");
 const { pool, initSchema } = require("../db");
 
 async function main() {
@@ -20,12 +14,7 @@ async function main() {
     process.exit(1);
   }
   await initSchema();
-  const hash = await argon2.hash(password, {
-    type: argon2.argon2id,
-    memoryCost: 19456,
-    timeCost: 2,
-    parallelism: 1,
-  });
+  const hash = bcrypt.hashSync(password, 12);
   await pool.query(
     `INSERT INTO users (email, password_hash, role) VALUES ($1, $2, 'admin')
      ON CONFLICT (email) DO UPDATE SET password_hash = $2, role = 'admin'`,

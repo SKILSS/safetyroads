@@ -62,6 +62,13 @@ async function initSchema() {
     ALTER TABLE problems ADD COLUMN IF NOT EXISTS resolution_ai_verdict TEXT;
     ALTER TABLE problems ADD COLUMN IF NOT EXISTS resolution_ai_checked_at TIMESTAMPTZ;
     ALTER TABLE problems ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS source_type TEXT NOT NULL DEFAULT 'user';
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS source_name TEXT;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS source_url TEXT;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS external_id TEXT;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS imported_at TIMESTAMPTZ;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS source_last_seen_at TIMESTAMPTZ;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_problems_external_source ON problems(source_type, external_id) WHERE external_id IS NOT NULL;
 
     -- Gas stations. Locations can be bulk-imported (see scripts/sync-stations.js,
     -- which pulls them from OpenStreetMap/Overpass — free, no key needed).
@@ -93,15 +100,18 @@ async function initSchema() {
     ALTER TABLE gas_stations ADD COLUMN IF NOT EXISTS price_updated_at TIMESTAMPTZ;
 
     -- Single-row table: only the admin can ever write to it (see routes/admin.js).
-    -- The DeepSeek key lives here, server-side, never sent to the browser.
+    -- The Gemini key lives here, server-side, never sent to the browser.
     CREATE TABLE IF NOT EXISTS app_settings (
       id INTEGER PRIMARY KEY DEFAULT 1,
-      deepseek_api_key TEXT,
+      gemini_api_key TEXT,
+      deepseek_api_key TEXT, -- legacy compatibility; no longer used by the app
       price_api_key TEXT, -- Bearer token for a fuel-price provider (e.g. Benzup) — see scripts/sync-prices.js
       price_api_url TEXT, -- that provider's "list stations with prices" endpoint
       CONSTRAINT single_row CHECK (id = 1)
     );
     INSERT INTO app_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+    ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS gemini_api_key TEXT;
+    ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS deepseek_api_key TEXT;
     ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS price_api_key TEXT;
     ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS price_api_url TEXT;
   `);

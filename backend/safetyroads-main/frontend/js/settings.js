@@ -1,10 +1,10 @@
 // ---------------------------------------------------------------------------
 // Settings tab — appearance, account (login/register/logout), and — only
-// for the admin account — the DeepSeek key, which is set here and saved
+// for the admin account — the Gemini key, which is set here and saved
 // straight to the server; it's never stored or shown in this browser again.
 // ---------------------------------------------------------------------------
 let authMode = "login"; // "login" | "register"
-let deepseekKeyStatus = null; // {deepseekKeySet} once fetched
+let geminiKeyStatus = null; // {geminiKeySet} once fetched
 
 function renderSettingsTab(mount) {
   const s = t();
@@ -87,10 +87,7 @@ function renderAccountSection(s) {
 }
 function wireAccountSection(mount) {
   const logoutBtn = mount.querySelector("#logout-btn");
-  if (logoutBtn) logoutBtn.onclick = async () => {
-    try { await api("/auth/logout", { method: "POST" }); } catch {}
-    setState({ token: null, user: null });
-  };
+  if (logoutBtn) logoutBtn.onclick = () => setState({ token: null, user: null });
 
   const toggleLink = mount.querySelector("#auth-toggle-link");
   if (toggleLink) toggleLink.onclick = () => { authMode = authMode === "login" ? "register" : "login"; renderSettingsTab(mount); };
@@ -107,7 +104,7 @@ function wireAccountSection(mount) {
           method: "POST",
           body: JSON.stringify({ email, password }),
         });
-        setState({ token: true, user: data.user });
+        setState({ token: data.token, user: data.user });
       } catch (err) {
         msg.textContent = err.message || s.authError;
       }
@@ -115,28 +112,28 @@ function wireAccountSection(mount) {
   }
 }
 
-// --- DeepSeek key: admin only, write-only from the UI's perspective -----
+// --- Gemini key: admin only, write-only from the UI's perspective -----
 function renderDeepseekSection(s) {
   return `
-    <p class="note-text" id="deepseek-status">…</p>
-    <input type="password" id="deepseek-key-input" placeholder="sk-…" />
-    <button class="btn-primary" id="deepseek-save-btn">${s.saveKey}</button>
-    <p class="note-text" id="deepseek-msg"></p>`;
+    <p class="note-text" id="gemini-status">…</p>
+    <input type="password" id="gemini-key-input" placeholder="sk-…" />
+    <button class="btn-primary" id="gemini-save-btn">${s.saveKey}</button>
+    <p class="note-text" id="gemini-msg"></p>`;
 }
 function wireDeepseekSection(mount) {
-  const statusEl = mount.querySelector("#deepseek-status");
+  const statusEl = mount.querySelector("#gemini-status");
   api("/admin/settings").then((data) => {
-    if (statusEl) statusEl.textContent = data.deepseekKeySet ? t().deepseekKeySet : t().deepseekKeyNotSet;
+    if (statusEl) statusEl.textContent = data.geminiKeySet ? t().geminiKeySet : t().geminiKeyNotSet;
   }).catch(() => {});
 
-  mount.querySelector("#deepseek-save-btn").onclick = async () => {
+  mount.querySelector("#gemini-save-btn").onclick = async () => {
     const s = t();
-    const key = mount.querySelector("#deepseek-key-input").value.trim();
-    const msg = mount.querySelector("#deepseek-msg");
+    const key = mount.querySelector("#gemini-key-input").value.trim();
+    const msg = mount.querySelector("#gemini-msg");
     try {
-      await api("/admin/settings", { method: "PUT", body: JSON.stringify({ deepseekApiKey: key }) });
+      await api("/admin/settings", { method: "PUT", body: JSON.stringify({ geminiApiKey: key }) });
       msg.textContent = s.keySaved;
-      mount.querySelector("#deepseek-key-input").value = "";
+      mount.querySelector("#gemini-key-input").value = "";
     } catch (err) {
       msg.textContent = err.message;
     }

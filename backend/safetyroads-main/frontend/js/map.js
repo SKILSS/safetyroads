@@ -153,7 +153,7 @@ function renderSidePanel(mount) {
             <span class="dot" style="background:${severityColor(p.severity)}"></span>
             <div style="flex:1">
               <div class="problem-item-title">${problemTitle(p)}</div>
-              <div class="problem-item-meta">${p.region} · ${s[p.category]} · ${s["status" + capitalize(p.status)]}</div>
+              <div class="problem-item-meta">${p.region} · ${s[p.category] || p.category} · ${s["status" + capitalize(p.status)] || p.status}${p.source_type && p.source_type !== "user" ? ` · ${p.source_name || p.source_type}` : ""}</div>
               ${adminActionsHtml(p)}
             </div>
           </li>`).join("")}</ul>`

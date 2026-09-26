@@ -19,7 +19,7 @@ const state = {
   selectedRegion: null,
   regionNames: [],
   problems: [],
-  // Auth token is never stored in localStorage. It lives only in the HttpOnly session cookie.\n  token: null,
+  token: localStorage.getItem(STORAGE_KEYS.token) || null,
   user: JSON.parse(localStorage.getItem(STORAGE_KEYS.user) || "null"),
   chatOpen: false,
   chatMessages: [],
@@ -30,6 +30,10 @@ function setState(patch) {
   if ("theme" in patch) localStorage.setItem(STORAGE_KEYS.theme, state.theme);
   if ("lang" in patch) localStorage.setItem(STORAGE_KEYS.lang, state.lang);
   if ("showSupport" in patch) localStorage.setItem(STORAGE_KEYS.showSupport, String(state.showSupport));
+  if ("token" in patch) {
+    if (state.token) localStorage.setItem(STORAGE_KEYS.token, state.token);
+    else localStorage.removeItem(STORAGE_KEYS.token);
+  }
   if ("user" in patch) {
     if (state.user) localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(state.user));
     else localStorage.removeItem(STORAGE_KEYS.user);
@@ -86,34 +90,16 @@ function regionCounts() {
 // --- API helper -------------------------------------------------------
 async function api(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
-  if (!["GET", "HEAD", "OPTIONS"].includes((options.method || "GET").toUpperCase())) {
-    const csrf = document.cookie.split("; ").find((x) => x.startsWith("csrf_token="))?.split("=")[1];
-    if (csrf) headers["X-CSRF-Token"] = decodeURIComponent(csrf);
-  }
-  const res = await fetch(`/api${path}`, { ...options, headers, credentials: "include" });
+  if (state.token) headers.Authorization = `Bearer ${state.token}`;
+  const res = await fetch(`/api${path}`, { ...options, headers });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
   return data;
 }
 
-async function restoreSession() {
-  try {
-    const data = await api("/auth/me");
-    state.user = data.user;
-    state.token = true; // only an in-memory logged-in marker, never the JWT
-    localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(data.user));
-  } catch {
-    state.token = null;
-    state.user = null;
-    localStorage.removeItem(STORAGE_KEYS.user);
-  }
-}
-
 async function loadProblems() {
   state.problems = await api("/problems").catch(() => []);
 }
-
-restoreSession().then(() => render());
 
 // --- Admin actions (server-enforced — the server checks the token's role,
 // not this code) --------------------------------------------------------

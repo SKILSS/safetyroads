@@ -1,23 +1,15 @@
 const jwt = require("jsonwebtoken");
 
-function getToken(req) {
-  const cookieToken = req.cookies?.session;
-  if (cookieToken) return cookieToken;
-  const header = req.headers.authorization || "";
-  return header.startsWith("Bearer ") ? header.slice(7) : null;
-}
-
-function verifyToken(token) {
-  if (!token || !process.env.JWT_SECRET) return null;
-  try { return jwt.verify(token, process.env.JWT_SECRET); }
-  catch { return null; }
-}
-
 function requireAuth(req, res, next) {
-  const user = verifyToken(getToken(req));
-  if (!user) return res.status(401).json({ error: "Login required." });
-  req.user = user;
-  next();
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) return res.status(401).json({ error: "Login required." });
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    next();
+  } catch {
+    return res.status(401).json({ error: "Invalid or expired session." });
+  }
 }
 
 function requireAdmin(req, res, next) {
@@ -27,9 +19,20 @@ function requireAdmin(req, res, next) {
   });
 }
 
+// Like requireAuth, but doesn't fail if there's no token — req.user is just
+// null. Used for endpoints public users can hit, where we still want to
+// know who's logged in (e.g. to attribute a report to its author).
 function optionalAuth(req, res, next) {
-  req.user = verifyToken(getToken(req));
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) { req.user = null; return next(); }
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    req.user = null;
+  }
   next();
 }
 
-module.exports = { requireAuth, requireAdmin, optionalAuth, getToken };
+module.exports = { requireAuth, requireAdmin, optionalAuth };
+

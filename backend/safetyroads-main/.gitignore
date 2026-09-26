@@ -141,7 +141,3 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
-
-# Render/local secrets
-safetyroads.env
-.env

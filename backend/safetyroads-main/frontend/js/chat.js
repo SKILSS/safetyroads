@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 const CHAT_FAQ = [
   { kw: ["фото", "photo", "загруз", "upload"], ru: "Во вкладке «Проблемы» нажмите на область загрузки, выберите фото, добавьте описание и регион, затем отправьте на проверку ИИ.", en: "In Problems, click the upload area, pick a photo, add a description and region, then submit for AI review." },
-  { kw: ["ключ", "api", "key"], ru: "Ключ DeepSeek API задаёт только администратор в «Настройках» — он хранится на сервере, не в браузере.", en: "The DeepSeek API key is set only by the admin in Settings — it's stored on the server, not in the browser." },
+  { kw: ["ключ", "api", "key"], ru: "Ключ Gemini API задаёт только администратор в «Настройках» — он хранится на сервере, не в браузере.", en: "The Gemini API key is set only by the admin in Settings — it's stored on the server, not in the browser." },
   { kw: ["регион", "region", "карта", "map"], ru: "На карте показаны все регионы России — нажмите на любой, чтобы увидеть его проблемы.", en: "The map shows every region of Russia — click any of them to see its problems." },
 ];
 

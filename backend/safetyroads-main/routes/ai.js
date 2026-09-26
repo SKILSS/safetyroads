@@ -14,9 +14,9 @@ router.post("/chat", requireAuth, aiLimiter, async (req, res) => {
   const language = req.body?.language === "en" ? "en" : "ru";
   if (!message) return res.status(400).json({ error: language === "en" ? "Message is required." : "Введите сообщение." });
 
-  const settings = (await pool.query("SELECT deepseek_api_key FROM app_settings WHERE id = 1")).rows[0];
-  const apiKey = settings?.deepseek_api_key || process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) return res.status(503).json({ error: language === "en" ? "DeepSeek is not configured by the administrator." : "DeepSeek не настроен администратором." });
+  const settings = (await pool.query("SELECT gemini_api_key FROM app_settings WHERE id = 1")).rows[0];
+  const apiKey = settings?.gemini_api_key || process.env.GEMINI_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: language === "en" ? "Gemini is not configured by the administrator." : "Gemini не настроен администратором." });
 
   const reports = await pool.query(
     `SELECT region, category, severity, status, title_ru, title_en, lat, lng, is_road
@@ -40,31 +40,30 @@ router.post("/chat", requireAuth, aiLimiter, async (req, res) => {
     ? `You are the SafetyRoad AI assistant. Help users understand the site's road reports, navigator, routes, map, gas-station information, and how to use the app. Be concise and factual. Never claim that a reported problem is verified unless its status says confirmed. Do not invent live traffic, road closures, prices, or exact navigation events. If asked for something the app cannot know, say so. Reply in English.`
     : `Ты ИИ-помощник SafetyRoad. Помогай пользователю разбираться с обращениями о дорогах, навигатором, маршрутами, картой, АЗС и функциями сайта. Отвечай кратко и по делу. Не называй проблему подтверждённой, если её статус не confirmed. Не выдумывай пробки, перекрытия, цены или события навигации в реальном времени. Если сайт не может знать ответ, прямо скажи об этом. Отвечай на русском.`;
 
-  const payload = {
-    model: "deepseek-flash",
-    thinking: { type: "disabled" },
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: `Current public report data (may be incomplete): ${JSON.stringify(reportContext)}\n\nUser message: ${message}` },
-    ],
-    max_tokens: 700,
-  };
+  const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+  const prompt = `${system}\n\nCurrent public report data (may be incomplete): ${JSON.stringify(reportContext)}\n\nUser message: ${message}`;
 
   try {
-    const aiRes = await fetch("https://api.deepseek.com/chat/completions", {
+    const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify(payload),
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.2, maxOutputTokens: 700 },
+      }),
     });
     const bodyText = await aiRes.text();
     if (!aiRes.ok) {
-      let detail = `DeepSeek HTTP ${aiRes.status}`;
+      let detail = `Gemini HTTP ${aiRes.status}`;
       try { detail = JSON.parse(bodyText)?.error?.message || detail; } catch {}
       throw new Error(detail.slice(0, 240));
     }
     const data = JSON.parse(bodyText);
-    const answer = String(data?.choices?.[0]?.message?.content || "").trim();
-    if (!answer) throw new Error("DeepSeek returned an empty answer.");
+    const answer = String(data?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "").trim();
+    if (!answer) throw new Error("Gemini returned an empty answer.");
     res.json({ answer });
   } catch (err) {
     console.error("[ai/chat]", err);

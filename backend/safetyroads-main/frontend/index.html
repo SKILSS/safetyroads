@@ -1043,10 +1043,10 @@
                 <div class="settings-card" id="adminCard" style="display:none;">
                     <h4 style="margin-bottom:10px;">🛠 Админ-панель</h4>
                     <div class="settings-row" style="display:block;">
-                        <span>🤖 Ключ DeepSeek (проверка фото ИИ)</span>
-                        <input type="password" id="deepseekKeyInput" placeholder="Оставьте пустым, чтобы не менять" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
-                        <div id="deepseekKeyStatus" style="font-size:0.75rem;color:#7e92b0;margin-top:6px;"></div>
-                        <button type="button" id="saveDeepseekKey" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#f5a623;color:#111;font-weight:700;cursor:pointer;">Сохранить ключ</button>
+                        <span>🤖 Ключ Gemini (проверка фото ИИ)</span>
+                        <input type="password" id="geminiKeyInput" placeholder="Вставьте ключ Google Gemini или оставьте пустым, чтобы не менять" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
+                        <div id="geminiKeyStatus" style="font-size:0.75rem;color:#7e92b0;margin-top:6px;"></div>
+                        <button type="button" id="saveGeminiKey" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#f5a623;color:#111;font-weight:700;cursor:pointer;">Сохранить ключ</button>
                     </div>
                     <div class="settings-row" style="display:block;border-top:1px solid #29394e;padding-top:12px;">
                         <span>⛽ Автообновление цен (провайдер, напр. Benzup)</span>
@@ -1191,7 +1191,7 @@
                     categoryRoad:'🚧 Дороги', categoryLight:'💡 Освещение', categoryUtilities:'🏠 ЖКХ', categoryTrash:'🗑 Мусор', categoryOther:'📌 Другое',
                     location:'📍 Место', aiHelp:'🤖 ИИ проверит фото (если загружено) •', coordinatesHint:'для указания координат',
                     chatPlaceholder:'Напишите...',
-                    deepseekPlaceholder:'Оставьте пустым, чтобы не менять', priceApiUrlPlaceholder:'URL провайдера, напр. https://api.omt-consult.ru/v2/stations', priceApiKeyPlaceholder:'Bearer-токен провайдера (оставьте пустым, чтобы не менять)',
+                    geminiPlaceholder:'Вставьте ключ Google Gemini или оставьте пустым, чтобы не менять', priceApiUrlPlaceholder:'URL провайдера, напр. https://api.omt-consult.ru/v2/stations', priceApiKeyPlaceholder:'Bearer-токен провайдера (оставьте пустым, чтобы не менять)',
                     stationNamePlaceholder:'Название АЗС', stationHint:'Выберите место на карте, затем нажмите «Добавить АЗС в выбранной точке»',
                     serverPriceNote:'Сервер автоматически использует открытые агрегированные данные «Ехай» как ориентир и, если настроен, точные данные станционного провайдера (например, Benzup). Точные цены помечаются отдельно от медианных. Синхронизация выполняется автоматически каждый час.',
                     addStation:'➕ Добавить АЗС в выбранной точке',
@@ -1199,7 +1199,7 @@
                     fileChoose:'📷 Выбрать файл', fileNone:'Файл не выбран',
                     markRoad:'🚧 Отметить всю дорогу (несколько точек)',
                     submit:'Отправить на проверку', noProblems:'Проблем пока нет',
-                    settingsAdmin:'🛠 Админ-панель', deepseek:'🤖 Ключ DeepSeek (проверка фото ИИ)',
+                    settingsAdmin:'🛠 Админ-панель', gemini:'🤖 Ключ Gemini (проверка фото ИИ)',
                     saveKey:'Сохранить ключ', fuelProvider:'⛽ Автообновление цен (провайдер)',
                     saveProvider:'Сохранить провайдера цен', addFuel:'⛽ Добавить АЗС вручную',
                     systemReady:'Система готова', footer:'SafetyRoad — данные обновляются 24/7',
@@ -1244,7 +1244,7 @@
                     categoryRoad:'🚧 Roads', categoryLight:'💡 Lighting', categoryUtilities:'🏠 Utilities', categoryTrash:'🗑 Waste', categoryOther:'📌 Other',
                     location:'📍 Location', aiHelp:'🤖 AI will review the photo (if uploaded) •', coordinatesHint:'to set coordinates',
                     chatPlaceholder:'Type a message...',
-                    deepseekPlaceholder:'Leave empty to keep the current key', priceApiUrlPlaceholder:'Provider URL, e.g. https://api.omt-consult.ru/v2/stations', priceApiKeyPlaceholder:'Provider Bearer token (leave empty to keep current)',
+                    geminiPlaceholder:'Paste your Google Gemini key or leave empty to keep the current key', priceApiUrlPlaceholder:'Provider URL, e.g. https://api.omt-consult.ru/v2/stations', priceApiKeyPlaceholder:'Provider Bearer token (leave empty to keep current)',
                     stationNamePlaceholder:'Gas station name', stationHint:'Choose a location on the map, then click “Add a gas station at the selected point”',
                     serverPriceNote:'The server automatically uses open aggregated “Ехай” data as an estimate and, when configured, exact data from the station-price provider (for example, Benzup). Exact prices are marked separately from median estimates. Synchronization runs automatically every hour.',
                     addStation:'➕ Add a gas station at the selected point',
@@ -1252,7 +1252,7 @@
                     fileChoose:'📷 Choose file', fileNone:'No file chosen',
                     markRoad:'🚧 Mark the whole road (multiple points)',
                     submit:'Submit for review', noProblems:'No problems yet',
-                    settingsAdmin:'🛠 Admin panel', deepseek:'🤖 DeepSeek key (AI photo review)',
+                    settingsAdmin:'🛠 Admin panel', gemini:'🤖 Gemini key (AI photo review)',
                     saveKey:'Save key', fuelProvider:'⛽ Automatic fuel-price updates (provider)',
                     saveProvider:'Save price provider', addFuel:'⛽ Add a gas station manually',
                     systemReady:'System ready', footer:'SafetyRoad — data updated 24/7',
@@ -1371,12 +1371,12 @@
                 const logoutBtn = document.getElementById('logoutButton'); if (logoutBtn) logoutBtn.textContent = s.logout;
                 const support = document.getElementById('supportLabel'); if (support) support.textContent = s.support;
                 const adminH = first('#adminCard h4'); if (adminH) adminH.textContent = s.settingsAdmin;
-                const deep = first('#adminCard .settings-row span'); if (deep) deep.textContent = s.deepseek;
-                const saveKey = document.getElementById('saveDeepseekKey'); if (saveKey) saveKey.textContent = s.saveKey;
+                const deep = first('#adminCard .settings-row span'); if (deep) deep.textContent = s.gemini;
+                const saveKey = document.getElementById('saveGeminiKey'); if (saveKey) saveKey.textContent = s.saveKey;
                 const providerRows = document.querySelectorAll('#adminCard .settings-row'); if (providerRows[1]) { const sp=providerRows[1].querySelector('span'); if(sp) sp.textContent=s.fuelProvider; }
                 const saveProvider = document.getElementById('savePriceApi'); if(saveProvider) saveProvider.textContent=s.saveProvider;
                 if (providerRows[2]) { const sp=providerRows[2].querySelector('span'); if(sp) sp.textContent=s.addFuel; }
-                const deepInput = document.getElementById('deepseekKeyInput'); if (deepInput) deepInput.placeholder = s.deepseekPlaceholder;
+                const deepInput = document.getElementById('geminiKeyInput'); if (deepInput) deepInput.placeholder = s.geminiPlaceholder;
                 const priceUrl = document.getElementById('priceApiUrlInput'); if (priceUrl) priceUrl.placeholder = s.priceApiUrlPlaceholder;
                 const priceKey = document.getElementById('priceApiKeyInput'); if (priceKey) priceKey.placeholder = s.priceApiKeyPlaceholder;
                 const stationName = document.getElementById('stationName'); if (stationName) stationName.placeholder = s.stationNamePlaceholder;
@@ -2090,7 +2090,7 @@
                 }
             }
 
-            // ===== DEEPSEEK AI CHAT =====
+            // ===== GEMINI AI CHAT =====
             async function sendAiChatMessage() {
                 const input = document.getElementById('chatInput');
                 const send = document.getElementById('chatSend');
@@ -2172,7 +2172,7 @@
                 if (!isAdmin()) return;
                 try {
                     const s = await apiRequest('/admin/settings');
-                    document.getElementById('deepseekKeyStatus').textContent = s.deepseekKeySet
+                    document.getElementById('geminiKeyStatus').textContent = s.geminiKeySet
                         ? (lang==='en'?'🔑 Key saved':'🔑 Ключ сохранён')
                         : (lang==='en'?'⚠️ Key not set — AI photo review is disabled':'⚠️ Ключ не задан — проверка фото ИИ отключена');
                     document.getElementById('priceApiStatus').textContent = s.priceApiKeySet
@@ -2181,12 +2181,12 @@
                     document.getElementById('priceApiUrlInput').value = s.priceApiUrl || '';
                 } catch { /* тихо игнорируем — не критично для остального интерфейса */ }
             }
-            async function saveDeepseekKey() {
-                const val = document.getElementById('deepseekKeyInput').value;
+            async function saveGeminiKey() {
+                const val = document.getElementById('geminiKeyInput').value;
                 try {
-                    const s = await apiRequest('/admin/settings', { method: 'PUT', body: JSON.stringify({ deepseekApiKey: val }) });
-                    document.getElementById('deepseekKeyStatus').textContent = s.deepseekKeySet ? '🔑 Ключ сохранён' : 'Ключ очищен';
-                    document.getElementById('deepseekKeyInput').value = '';
+                    const s = await apiRequest('/admin/settings', { method: 'PUT', body: JSON.stringify({ geminiApiKey: val }) });
+                    document.getElementById('geminiKeyStatus').textContent = s.geminiKeySet ? '🔑 Ключ сохранён' : 'Ключ очищен';
+                    document.getElementById('geminiKeyInput').value = '';
                 } catch (err) { alert('Ошибка: ' + err.message); }
             }
             async function savePriceApi() {
@@ -2829,7 +2829,7 @@
                 document.getElementById('loginButton').addEventListener('click', () => login(document.getElementById('regEmail').value.trim(), document.getElementById('regPass').value));
                 document.getElementById('logoutButton').addEventListener('click', logout);
 
-                document.getElementById('saveDeepseekKey').addEventListener('click', saveDeepseekKey);
+                document.getElementById('saveGeminiKey').addEventListener('click', saveGeminiKey);
                 document.getElementById('savePriceApi').addEventListener('click', savePriceApi);
                 document.getElementById('addStationBtn').addEventListener('click', addStationManually);
 

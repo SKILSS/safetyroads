@@ -86,6 +86,7 @@ function problemCardHtml(p, s) {
           <div class="problem-item-meta">
             <span class="dot" style="display:inline-block;background:${severityColor(p.severity)}"></span>
             ${escapeHtml(p.region)} · ${s["status" + capitalize(p.status)] || escapeHtml(p.status)}
+            ${p.source_type && p.source_type !== "user" ? ` · ${escapeHtml(p.source_name || p.source_type)}` : ""}
           </div>
           ${p.ai_verdict ? `<div class="note-text" style="margin-top:4px">🤖 ${escapeHtml(p.ai_verdict)} ${p.ai_confidence != null ? `(${Math.round(Number(p.ai_confidence)*100)}%)` : ""}</div>` : ""}
           ${p.ai_status === "error" ? `<div class="warn-text" style="margin-top:4px">⚠️ ${s.aiCheckError}</div>` : ""}

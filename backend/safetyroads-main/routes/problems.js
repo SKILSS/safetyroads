@@ -28,85 +28,92 @@ function parseAiJson(text) {
   try { return JSON.parse(match[0]); } catch { return null; }
 }
 
-async function runAiCheck({ apiKey, imageDataUrl, description }) {
-  const aiRes = await fetch("https://api.deepseek.com/chat/completions", {
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+
+const problemAiSchema = {
+  type: "object",
+  properties: {
+    matchesDescription: { type: "boolean" },
+    detectedProblem: { type: "string" },
+    confidence: { type: "number" },
+    reason: { type: "string" }
+  },
+  required: ["matchesDescription", "detectedProblem", "confidence", "reason"]
+};
+
+const resolutionAiSchema = {
+  type: "object",
+  properties: {
+    isFixed: { type: "boolean" },
+    confidence: { type: "number" },
+    reason: { type: "string" }
+  },
+  required: ["isFixed", "confidence", "reason"]
+};
+
+function dataUrlToGeminiPart(dataUrl) {
+  const m = String(dataUrl || "").match(/^data:(image\/(?:jpeg|png|gif|webp));base64,([A-Za-z0-9+/=]+)$/i);
+  if (!m) throw new Error("Invalid image data.");
+  return { inlineData: { mimeType: m[1].toLowerCase(), data: m[2] } };
+}
+
+async function geminiGenerate({ apiKey, parts, schema }) {
+  const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      "x-goog-api-key": apiKey,
     },
     body: JSON.stringify({
-      model: "deepseek-flash",
-      thinking: { type: "disabled" },
-      messages: [{
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: `Analyze this road/civic problem photo against the user's description. Do NOT claim that a photo proves the real-world event. Decide only whether the visible content is consistent with the description. Return ONLY valid JSON with exactly these keys: matchesDescription (boolean), detectedProblem (string), confidence (number from 0 to 1), reason (string, max 300 chars). User description: ${description}`,
-          },
-          { type: "image_url", image_url: { url: imageDataUrl, detail: "high" } },
-        ],
-      }],
-      max_tokens: 300,
-      response_format: { type: "json_object" },
+      contents: [{ role: "user", parts }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: schema,
+        temperature: 0.1,
+        maxOutputTokens: 500,
+      },
     }),
   });
-
   const bodyText = await aiRes.text();
   if (!aiRes.ok) {
-    let detail = `DeepSeek HTTP ${aiRes.status}`;
+    let detail = `Gemini HTTP ${aiRes.status}`;
     try { detail = JSON.parse(bodyText)?.error?.message || detail; } catch {}
     throw new Error(detail.slice(0, 220));
   }
   let data;
-  try { data = JSON.parse(bodyText); } catch { throw new Error("Invalid response from DeepSeek."); }
-  const content = data?.choices?.[0]?.message?.content;
+  try { data = JSON.parse(bodyText); } catch { throw new Error("Invalid response from Gemini."); }
+  const content = data?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("").trim();
   const parsed = parseAiJson(content);
-  if (!parsed || typeof parsed.matchesDescription !== "boolean") {
-    throw new Error("DeepSeek returned an unexpected AI response.");
-  }
-  const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0));
+  if (!parsed) throw new Error("Gemini returned an invalid JSON response.");
+  return parsed;
+}
+
+async function runAiCheck({ apiKey, imageDataUrl, description }) {
+  const parsed = await geminiGenerate({
+    apiKey,
+    schema: problemAiSchema,
+    parts: [
+      { text: `Analyze this road/civic problem photo against the user's description. Do NOT claim that a photo proves the real-world event. Decide only whether the visible content is consistent with the description. Return only the requested JSON. User description: ${description}` },
+      dataUrlToGeminiPart(imageDataUrl),
+    ],
+  });
+  if (typeof parsed.matchesDescription !== "boolean") throw new Error("Gemini returned an unexpected AI response.");
   return {
     matchesDescription: parsed.matchesDescription,
     detectedProblem: String(parsed.detectedProblem || "unknown").slice(0, 200),
-    confidence,
+    confidence: Math.max(0, Math.min(1, Number(parsed.confidence) || 0)),
     reason: String(parsed.reason || "").slice(0, 300),
   };
 }
 
-
 async function runResolutionAiCheck({ apiKey, originalImageDataUrl, resolutionImageDataUrl, description, resolutionNote }) {
-  const content = [
-    {
-      type: "text",
-      text: `You are checking whether a previously reported public-road/civic problem appears to have been fixed. This is image evidence only; do not claim certainty about the real-world event. Compare the current photo with the original problem photo when available, plus the original description and the user's note. Return ONLY valid JSON with exactly these keys: isFixed (boolean), confidence (number 0 to 1), reason (string max 350 chars). Mark isFixed=true only when the current image provides reasonably clear visual evidence that the described problem is no longer present or has been repaired. If the image is ambiguous, unrelated, too poor, or the issue could still be present, use false with low confidence. Original description: ${description}. User note: ${resolutionNote || "No additional note."}`
-    },
-  ];
-  if (originalImageDataUrl) content.push({ type: "text", text: "Original problem photo:" }, { type: "image_url", image_url: { url: originalImageDataUrl, detail: "high" } });
-  content.push({ type: "text", text: "Photo submitted as evidence of repair:" }, { type: "image_url", image_url: { url: resolutionImageDataUrl, detail: "high" } });
-
-  const aiRes = await fetch("https://api.deepseek.com/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: "deepseek-flash",
-      thinking: { type: "disabled" },
-      messages: [{ role: "user", content }],
-      max_tokens: 300,
-      response_format: { type: "json_object" },
-    }),
-  });
-  const bodyText = await aiRes.text();
-  if (!aiRes.ok) {
-    let detail = `DeepSeek HTTP ${aiRes.status}`;
-    try { detail = JSON.parse(bodyText)?.error?.message || detail; } catch {}
-    throw new Error(detail.slice(0, 220));
-  }
-  let data;
-  try { data = JSON.parse(bodyText); } catch { throw new Error("Invalid response from DeepSeek."); }
-  const parsed = parseAiJson(data?.choices?.[0]?.message?.content);
-  if (!parsed || typeof parsed.isFixed !== "boolean") throw new Error("DeepSeek returned an unexpected resolution response.");
+  const parts = [{
+    text: `You are checking whether a previously reported public-road/civic problem appears to have been fixed. This is image evidence only; do not claim certainty about the real-world event. Compare the current photo with the original problem photo when available, plus the original description and the user's note. Mark isFixed=true only when the current image provides reasonably clear visual evidence that the described problem is no longer present or has been repaired. If the image is ambiguous, unrelated, too poor, or the issue could still be present, use false with low confidence. Original description: ${description}. User note: ${resolutionNote || "No additional note."}`
+  }];
+  if (originalImageDataUrl) parts.push({ text: "Original problem photo:" }, dataUrlToGeminiPart(originalImageDataUrl));
+  parts.push({ text: "Photo submitted as evidence of repair:" }, dataUrlToGeminiPart(resolutionImageDataUrl));
+  const parsed = await geminiGenerate({ apiKey, parts, schema: resolutionAiSchema });
+  if (typeof parsed.isFixed !== "boolean") throw new Error("Gemini returned an unexpected resolution response.");
   return {
     isFixed: parsed.isFixed,
     confidence: Math.max(0, Math.min(1, Number(parsed.confidence) || 0)),
@@ -140,8 +147,8 @@ router.post("/", requireAuth, writeLimiter, async (req, res) => {
   let aiCheckedAt = null;
   let aiError = null;
 
-  const settings = (await pool.query("SELECT deepseek_api_key FROM app_settings WHERE id = 1")).rows[0];
-  const apiKey = settings?.deepseek_api_key || process.env.DEEPSEEK_API_KEY;
+  const settings = (await pool.query("SELECT gemini_api_key FROM app_settings WHERE id = 1")).rows[0];
+  const apiKey = settings?.gemini_api_key || process.env.GEMINI_API_KEY;
   if (apiKey && image) {
     try {
       const verdict = await runAiCheck({ apiKey, imageDataUrl: image.data, description: titleRu || titleEn });
@@ -188,7 +195,7 @@ router.patch("/:id/withdraw", requireAuth, writeLimiter, async (req, res) => {
 
 
 // Any authenticated user can submit photo evidence that a problem was fixed.
-// The server keeps the original report and lets DeepSeek decide whether the new
+// The server keeps the original report and lets Gemini decide whether the new
 // photo is strong enough evidence. Only a high-confidence positive result
 // changes the public status to resolved.
 router.post("/:id/resolve", requireAuth, writeLimiter, async (req, res) => {
@@ -203,8 +210,8 @@ router.post("/:id/resolve", requireAuth, writeLimiter, async (req, res) => {
     return res.status(409).json({ error: "This problem is no longer active." });
   }
 
-  const settings = (await pool.query("SELECT deepseek_api_key FROM app_settings WHERE id = 1")).rows[0];
-  const apiKey = settings?.deepseek_api_key || process.env.DEEPSEEK_API_KEY;
+  const settings = (await pool.query("SELECT gemini_api_key FROM app_settings WHERE id = 1")).rows[0];
+  const apiKey = settings?.gemini_api_key || process.env.GEMINI_API_KEY;
   if (!apiKey) {
     await pool.query(`UPDATE problems SET resolution_ai_status='not_configured', resolved_image_data=$1, resolution_note=$2, resolved_by=$3 WHERE id=$4`,
       [image.data, String(note || "").slice(0, 500), req.user.id, problem.id]);
