@@ -695,6 +695,14 @@
         .withdraw-actions button { flex:1; border:0; border-radius:10px; padding:10px; cursor:pointer; font-weight:700; background:#304157; color:#fff; }
         .withdraw-actions button.danger { background:#c43d3d; }
         .ai-chat-output { margin-top:8px; padding:9px 11px; border-radius:10px; background:#172232; color:#b9c8da; font-size:.75rem; line-height:1.45; min-height:36px; }
+        .ai-chat-output { max-height:240px; overflow-y:auto; }
+        .ai-chat-message { padding:8px 10px; border-radius:10px; margin:6px 0; }
+        .ai-chat-message.user { background:#243750; }
+        .ai-chat-message.bot { background:#1a2a22; }
+        .ai-chat-message.thinking { opacity:.8; }
+        .ai-chat-author { display:block; font-size:.68rem; font-weight:700; margin-bottom:3px; opacity:.75; }
+        .ai-chat-text { white-space:normal; overflow-wrap:anywhere; }
+
         .nav-icon-btn, .nav-small-btn, .nav-go-btn {
             border:0;
             border-radius:12px;
@@ -1025,7 +1033,7 @@
                             <input type="text" placeholder="Напишите..." id="chatInput" />
                             <span id="chatSend">➤</span>
                         </div>
-                        <div id="aiChatOutput" class="ai-chat-output">🤖 ${lang === 'en' ? 'AI assistant is ready.' : '🤖 ИИ-помощник готов.'}</div>
+                        <div id="aiChatOutput" class="ai-chat-output" role="log" aria-live="polite" aria-label="AI support"></div>
                     </div>
                 </div>
 
@@ -1134,6 +1142,7 @@
             let user = JSON.parse(localStorage.getItem('user') || 'null'); // {email, role} | null
             let problems = [];
             let stations = [];
+            let aiChatHistory = [];
             let map;
             let miniMap;
             let problemsLayer;
@@ -1190,7 +1199,7 @@
                     problemTitlePlaceholder:'Заголовок (например, Яма на дороге)', problemRegionPlaceholder:'Регион (например, Москва)',
                     categoryRoad:'🚧 Дороги', categoryLight:'💡 Освещение', categoryUtilities:'🏠 ЖКХ', categoryTrash:'🗑 Мусор', categoryOther:'📌 Другое',
                     location:'📍 Место', aiHelp:'🤖 ИИ проверит фото (если загружено) •', coordinatesHint:'для указания координат',
-                    chatPlaceholder:'Напишите...',
+                    chatPlaceholder:'Напишите...', chatEmpty:'Задайте вопрос — Gemini ответит прямо здесь.', chatThinking:'🤖 Думаю…', chatError:'Не удалось получить ответ ИИ.',
                     geminiPlaceholder:'Вставьте ключ Google Gemini или оставьте пустым, чтобы не менять', priceApiUrlPlaceholder:'URL провайдера, напр. https://api.omt-consult.ru/v2/stations', priceApiKeyPlaceholder:'Bearer-токен провайдера (оставьте пустым, чтобы не менять)',
                     stationNamePlaceholder:'Название АЗС', stationHint:'Выберите место на карте, затем нажмите «Добавить АЗС в выбранной точке»',
                     serverPriceNote:'Сервер автоматически использует открытые агрегированные данные «Ехай» как ориентир и, если настроен, точные данные станционного провайдера (например, Benzup). Точные цены помечаются отдельно от медианных. Синхронизация выполняется автоматически каждый час.',
@@ -1243,7 +1252,7 @@
                     problemTitlePlaceholder:'Title (for example: Pothole)', problemRegionPlaceholder:'Region (for example: Moscow)',
                     categoryRoad:'🚧 Roads', categoryLight:'💡 Lighting', categoryUtilities:'🏠 Utilities', categoryTrash:'🗑 Waste', categoryOther:'📌 Other',
                     location:'📍 Location', aiHelp:'🤖 AI will review the photo (if uploaded) •', coordinatesHint:'to set coordinates',
-                    chatPlaceholder:'Type a message...',
+                    chatPlaceholder:'Type a message...', chatEmpty:'Ask a question — Gemini will answer here.', chatThinking:'🤖 Thinking…', chatError:'Could not get an AI response.',
                     geminiPlaceholder:'Paste your Google Gemini key or leave empty to keep the current key', priceApiUrlPlaceholder:'Provider URL, e.g. https://api.omt-consult.ru/v2/stations', priceApiKeyPlaceholder:'Provider Bearer token (leave empty to keep current)',
                     stationNamePlaceholder:'Gas station name', stationHint:'Choose a location on the map, then click “Add a gas station at the selected point”',
                     serverPriceNote:'The server automatically uses open aggregated “Ехай” data as an estimate and, when configured, exact data from the station-price provider (for example, Benzup). Exact prices are marked separately from median estimates. Synchronization runs automatically every hour.',
@@ -1361,6 +1370,7 @@
                 const submit = document.getElementById('submitProblem'); if (submit) submit.textContent = s.submit;
                 const themeLabel = document.getElementById('settingsThemeLabel'); if (themeLabel) themeLabel.textContent = s.theme;
                 const chatInput = document.getElementById('chatInput'); if (chatInput) chatInput.placeholder = s.chatPlaceholder;
+                renderAiChatOutput();
                 const userBadge = document.getElementById('userBadge'); if (userBadge && !user) userBadge.textContent = '👤 ' + s.guest;
                 const userStatus = document.getElementById('userStatusBox'); if (userStatus && !user) userStatus.textContent = '👤 ' + (lang === 'en' ? 'You: ' : 'Вы: ') + s.guest;
                 const registerH = first('#page-settings .register-box h4'); if (registerH) registerH.textContent = s.register;
@@ -2091,9 +2101,34 @@
             }
 
             // ===== GEMINI AI CHAT =====
+            function escapeHtml(value) {
+                return String(value ?? '').replace(/[&<>\"]/g, ch => ({
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'
+                }[ch]));
+            }
+
+            function renderAiChatOutput() {
+                const output = document.getElementById('aiChatOutput');
+                if (!output) return;
+                if (!aiChatHistory.length) {
+                    output.innerHTML = '';
+                    output.style.display = 'none';
+                    return;
+                }
+                output.style.display = 'block';
+                output.innerHTML = aiChatHistory.map((m) => `
+                    <div class="ai-chat-message ${m.role === 'user' ? 'user' : 'bot'}">
+                        <span class="ai-chat-author">${m.role === 'user' ? (lang === 'en' ? 'You' : 'Вы') : 'Gemini'}</span>
+                        <div class="ai-chat-text">${escapeHtml(m.text).replace(/\n/g, '<br>')}</div>
+                    </div>
+                `).join('');
+                output.scrollTop = output.scrollHeight;
+            }
+
             async function sendAiChatMessage() {
                 const input = document.getElementById('chatInput');
                 const send = document.getElementById('chatSend');
+                const output = document.getElementById('aiChatOutput');
                 const text = input?.value.trim();
                 if (!text) return;
                 if (!token) {
@@ -2101,34 +2136,47 @@
                     switchTab('settings');
                     return;
                 }
-                const previous = send.textContent;
-                send.textContent = '…';
-                send.style.pointerEvents = 'none';
+
+                aiChatHistory.push({ role: 'user', text });
+                renderAiChatOutput();
+                const previous = send?.textContent || '➤';
+                if (send) {
+                    send.textContent = '…';
+                    send.style.pointerEvents = 'none';
+                }
+                if (output) {
+                    output.style.display = 'block';
+                    const thinking = document.createElement('div');
+                    thinking.className = 'ai-chat-message bot thinking';
+                    thinking.id = 'ai-chat-thinking';
+                    thinking.innerHTML = `<span class="ai-chat-author">Gemini</span><div class="ai-chat-text">${escapeHtml(LANG[lang].chatThinking)}</div>`;
+                    output.appendChild(thinking);
+                    output.scrollTop = output.scrollHeight;
+                }
+
                 try {
                     const data = await apiRequest('/ai/chat', {
                         method: 'POST',
                         body: JSON.stringify({
                             message: text,
                             language: lang,
-                            context: {
-                                selectedRegion: null,
-                                reportsCount: problems.length
-                            }
+                            history: aiChatHistory.slice(0, -1).slice(-10)
                         })
                     });
-                    document.getElementById('consoleMessage').innerText = '🤖 ' + data.answer;
+                    document.getElementById('ai-chat-thinking')?.remove();
+                    aiChatHistory.push({ role: 'model', text: data.answer });
                     input.value = '';
-                    // Keep the answer visible in the support area without adding another full chat UI.
-                    const output = document.getElementById('aiChatOutput');
-                    if (output) output.textContent = data.answer;
+                    renderAiChatOutput();
                 } catch (err) {
-                    const msg = lang === 'en' ? `AI error: ${err.message}` : `Ошибка ИИ: ${err.message}`;
-                    document.getElementById('consoleMessage').innerText = msg;
-                    const output = document.getElementById('aiChatOutput');
-                    if (output) output.textContent = msg;
+                    document.getElementById('ai-chat-thinking')?.remove();
+                    const fallback = err?.message || LANG[lang].chatError;
+                    aiChatHistory.push({ role: 'model', text: fallback });
+                    renderAiChatOutput();
                 } finally {
-                    send.textContent = previous;
-                    send.style.pointerEvents = '';
+                    if (send) {
+                        send.textContent = previous;
+                        send.style.pointerEvents = '';
+                    }
                 }
             }
 

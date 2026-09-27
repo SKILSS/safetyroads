@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Support chat — local FAQ only, no real backend
+// Support chat — backed by the SafetyRoad Gemini API
 // ---------------------------------------------------------------------------
 const CHAT_FAQ = [
   { kw: ["фото", "photo", "загруз", "upload"], ru: "Во вкладке «Проблемы» нажмите на область загрузки, выберите фото, добавьте описание и регион, затем отправьте на проверку ИИ.", en: "In Problems, click the upload area, pick a photo, add a description and region, then submit for AI review." },
@@ -31,14 +31,24 @@ function renderChatWidget(root) {
     </div>
   `;
   root.querySelector("#chat-close").onclick = () => setState({ chatOpen: false });
-  const send = () => {
+  const send = async () => {
     const input = root.querySelector("#chat-input");
     const text = input.value.trim();
     if (!text) return;
-    const lower = text.toLowerCase();
-    const match = CHAT_FAQ.find((f) => f.kw.some((k) => lower.includes(k)));
-    const reply = match ? match[state.lang] : s.chatFallback;
-    state.chatMessages = [...state.chatMessages, { from: "user", text }, { from: "bot", text: reply }];
+    if (!state.token) {
+      state.chatMessages = [...state.chatMessages, { from: "bot", text: state.lang === "en" ? "Please sign in first." : "Сначала войдите в аккаунт." }];
+      render();
+      return;
+    }
+    state.chatMessages = [...state.chatMessages, { from: "user", text }];
+    render();
+    try {
+      const data = await api("/ai/chat", { method: "POST", body: JSON.stringify({ message: text, language: state.lang }) });
+      state.chatMessages = [...state.chatMessages, { from: "bot", text: data.answer }];
+    } catch (err) {
+      state.chatMessages = [...state.chatMessages, { from: "bot", text: err.message || (state.lang === "en" ? "AI is temporarily unavailable." : "ИИ временно недоступен.") }];
+    }
+    input.value = "";
     render();
   };
   root.querySelector("#chat-send").onclick = send;

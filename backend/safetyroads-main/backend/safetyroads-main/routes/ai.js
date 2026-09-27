@@ -12,6 +12,13 @@ function cleanText(value, max = 4000) {
 router.post("/chat", requireAuth, aiLimiter, async (req, res) => {
   const message = cleanText(req.body?.message, 4000);
   const language = req.body?.language === "en" ? "en" : "ru";
+  const history = Array.isArray(req.body?.history)
+    ? req.body.history
+        .filter((m) => m && (m.role === "user" || m.role === "model"))
+        .slice(-10)
+        .map((m) => ({ role: m.role, text: cleanText(m.text, 1500) }))
+        .filter((m) => m.text)
+    : [];
   if (!message) return res.status(400).json({ error: language === "en" ? "Message is required." : "Введите сообщение." });
 
   const settings = (await pool.query("SELECT gemini_api_key FROM app_settings WHERE id = 1")).rows[0];
@@ -41,7 +48,10 @@ router.post("/chat", requireAuth, aiLimiter, async (req, res) => {
     : `Ты ИИ-помощник SafetyRoad. Помогай пользователю разбираться с обращениями о дорогах, навигатором, маршрутами, картой, АЗС и функциями сайта. Отвечай кратко и по делу. Не называй проблему подтверждённой, если её статус не confirmed. Не выдумывай пробки, перекрытия, цены или события навигации в реальном времени. Если сайт не может знать ответ, прямо скажи об этом. Отвечай на русском.`;
 
   const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
-  const prompt = `${system}\n\nCurrent public report data (may be incomplete): ${JSON.stringify(reportContext)}\n\nUser message: ${message}`;
+  const historyText = history.length
+    ? history.map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.text}`).join("\n")
+    : "No previous conversation.";
+  const prompt = `${system}\n\nCurrent public report data (may be incomplete): ${JSON.stringify(reportContext)}\n\nConversation history:\n${historyText}\n\nLatest user message: ${message}`;
 
   try {
     const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
