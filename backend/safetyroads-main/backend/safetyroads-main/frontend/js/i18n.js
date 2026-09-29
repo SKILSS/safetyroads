@@ -76,7 +76,7 @@ const STRINGS = {
     saveKey: "Save", keySaved: "Saved.",
     settingsSupport: "Support", supportToggle: "Show support chat",
     dataNote: "Reports and accounts are stored server-side in a database — this no longer resets on page reload.",
-    chatTitle: "Support", chatWelcome: "Hi! Ask the SafetyRoad Gemini assistant a question.",
+    chatTitle: "Support", chatWelcome: "Hi! This is a lightweight local assistant, not a live agent.",
     chatPlaceholder: "Type a message…", chatFallback: "I don't have an answer for that yet.",
     mapLoading: "Loading every region's borders…",
     mapError: "Couldn't load region borders (no network or source unavailable).",

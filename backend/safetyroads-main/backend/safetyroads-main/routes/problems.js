@@ -1,6 +1,6 @@
 const express = require("express");
 const { pool } = require("../db");
-const { requireAuth, requireAdmin } = require("../middleware/auth");
+const { requireAuth, requireAdmin, optionalAuth } = require("../middleware/auth");
 const { writeLimiter, aiLimiter } = require("../middleware/security");
 
 const router = express.Router();
@@ -10,7 +10,20 @@ router.get("/", async (req, res) => {
   const result = region
     ? await pool.query("SELECT * FROM problems WHERE region = $1 ORDER BY created_at DESC LIMIT 300", [region])
     : await pool.query("SELECT * FROM problems ORDER BY created_at DESC LIMIT 300");
+  // This is the shared public SafetyRoad dataset. External/imported reports
+  // are intentionally not tied to a user profile.
   res.set("Cache-Control", "public, max-age=15");
+  res.json(result.rows);
+});
+
+// Only reports created by the signed-in user belong in the user's profile.
+// Imported OSM/RSS/etc. reports are excluded even though they remain public on the map.
+router.get("/my", requireAuth, async (req, res) => {
+  const result = await pool.query(
+    "SELECT * FROM problems WHERE created_by = $1 AND COALESCE(source_type,'user') = 'user' ORDER BY created_at DESC LIMIT 200",
+    [req.user.id]
+  );
+  res.set("Cache-Control", "private, max-age=5");
   res.json(result.rows);
 });
 
@@ -170,8 +183,8 @@ router.post("/", requireAuth, writeLimiter, async (req, res) => {
   }
 
   const result = await pool.query(
-    `INSERT INTO problems (region, category, severity, status, title_ru, title_en, image_data, ai_verdict, ai_status, ai_matches, ai_confidence, ai_detected, ai_checked_at, lat, lng, is_road, route, created_by)
-     VALUES ($1,$2,$3,'new',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
+    `INSERT INTO problems (region, category, severity, status, title_ru, title_en, image_data, ai_verdict, ai_status, ai_matches, ai_confidence, ai_detected, ai_checked_at, lat, lng, is_road, route, created_by, source_type)
+     VALUES ($1,$2,$3,'new',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'user') RETURNING *`,
     [region, category || "other", severity || "med", titleRu, titleEn, image?.data || null, aiVerdict,
       aiStatus, aiMatches, aiConfidence, aiDetected, aiCheckedAt, safeLat, safeLng, roadMode,
       safeRoute ? JSON.stringify(safeRoute) : null, req.user.id]
@@ -194,11 +207,12 @@ router.patch("/:id/withdraw", requireAuth, writeLimiter, async (req, res) => {
 });
 
 
-// Any authenticated user can submit photo evidence that a problem was fixed.
+// Any visitor can submit photo evidence that a problem was fixed; if signed in,
+// their user id is stored as the person who supplied the evidence.
 // The server keeps the original report and lets Gemini decide whether the new
 // photo is strong enough evidence. Only a high-confidence positive result
 // changes the public status to resolved.
-router.post("/:id/resolve", requireAuth, writeLimiter, async (req, res) => {
+router.post("/:id/resolve", optionalAuth, writeLimiter, async (req, res) => {
   const { imageDataUrl, note } = req.body || {};
   const image = parseDataUrl(imageDataUrl);
   if (!image) return res.status(400).json({ error: "A valid repair photo is required." });
@@ -214,7 +228,7 @@ router.post("/:id/resolve", requireAuth, writeLimiter, async (req, res) => {
   const apiKey = settings?.gemini_api_key || process.env.GEMINI_API_KEY;
   if (!apiKey) {
     await pool.query(`UPDATE problems SET resolution_ai_status='not_configured', resolved_image_data=$1, resolution_note=$2, resolved_by=$3 WHERE id=$4`,
-      [image.data, String(note || "").slice(0, 500), req.user.id, problem.id]);
+      [image.data, String(note || "").slice(0, 500), req.user?.id || null, problem.id]);
     return res.status(503).json({ error: "AI review is not configured by the administrator." });
   }
 
@@ -230,12 +244,13 @@ router.post("/:id/resolve", requireAuth, writeLimiter, async (req, res) => {
   } catch (err) {
     const msg = String(err.message || "AI check failed").slice(0, 220);
     await pool.query(`UPDATE problems SET resolution_ai_status='error', resolved_image_data=$1, resolution_note=$2, resolved_by=$3 WHERE id=$4`,
-      [image.data, String(note || "").slice(0, 500), req.user.id, problem.id]);
+      [image.data, String(note || "").slice(0, 500), req.user?.id || null, problem.id]);
     console.error("[ai] resolution check failed:", msg);
     return res.status(502).json({ error: msg });
   }
 
   const accepted = verdict.isFixed && verdict.confidence >= 0.80;
+  const nextStatus = accepted ? 'resolved' : problem.status;
   const updated = await pool.query(`
     UPDATE problems SET
       status=$1, resolved_by=$2, resolved_image_data=$3, resolution_note=$4,
@@ -243,13 +258,14 @@ router.post("/:id/resolve", requireAuth, writeLimiter, async (req, res) => {
       resolution_ai_confidence=$6, resolution_ai_verdict=$7,
       resolution_ai_checked_at=now(), resolved_at=CASE WHEN $1='resolved' THEN now() ELSE NULL END
     WHERE id=$8 RETURNING *`,
-    [accepted ? "resolved" : problem.status, req.user.id, image.data, String(note || "").slice(0, 500),
+    [nextStatus, req.user?.id || null, image.data, String(note || "").slice(0, 500),
       verdict.isFixed, verdict.confidence, verdict.reason, problem.id]
   );
 
   res.json({
     ...updated.rows[0],
-    resolved: accepted,
+    resolved: nextStatus === 'resolved',
+    pending_confirmation: false,
     ai_reason: verdict.reason,
     ai_confidence: verdict.confidence,
   });

@@ -68,6 +68,9 @@ async function initSchema() {
     ALTER TABLE problems ADD COLUMN IF NOT EXISTS external_id TEXT;
     ALTER TABLE problems ADD COLUMN IF NOT EXISTS imported_at TIMESTAMPTZ;
     ALTER TABLE problems ADD COLUMN IF NOT EXISTS source_last_seen_at TIMESTAMPTZ;
+    UPDATE problems SET source_type='user' WHERE source_type IS NULL OR source_type='';
+    CREATE INDEX IF NOT EXISTS idx_problems_source_type ON problems(source_type);
+    CREATE INDEX IF NOT EXISTS idx_problems_created_by ON problems(created_by);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_problems_external_source ON problems(source_type, external_id) WHERE external_id IS NOT NULL;
 
     -- Gas stations. Locations can be bulk-imported (see scripts/sync-stations.js,

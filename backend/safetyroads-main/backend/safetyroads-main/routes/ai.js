@@ -1,6 +1,6 @@
 const express = require("express");
 const { pool } = require("../db");
-const { requireAuth } = require("../middleware/auth");
+const { optionalAuth } = require("../middleware/auth");
 const { aiLimiter } = require("../middleware/security");
 
 const router = express.Router();
@@ -9,16 +9,9 @@ function cleanText(value, max = 4000) {
   return String(value || "").trim().slice(0, max);
 }
 
-router.post("/chat", requireAuth, aiLimiter, async (req, res) => {
+router.post("/chat", optionalAuth, aiLimiter, async (req, res) => {
   const message = cleanText(req.body?.message, 4000);
   const language = req.body?.language === "en" ? "en" : "ru";
-  const history = Array.isArray(req.body?.history)
-    ? req.body.history
-        .filter((m) => m && (m.role === "user" || m.role === "model"))
-        .slice(-10)
-        .map((m) => ({ role: m.role, text: cleanText(m.text, 1500) }))
-        .filter((m) => m.text)
-    : [];
   if (!message) return res.status(400).json({ error: language === "en" ? "Message is required." : "Введите сообщение." });
 
   const settings = (await pool.query("SELECT gemini_api_key FROM app_settings WHERE id = 1")).rows[0];
@@ -48,10 +41,17 @@ router.post("/chat", requireAuth, aiLimiter, async (req, res) => {
     : `Ты ИИ-помощник SafetyRoad. Помогай пользователю разбираться с обращениями о дорогах, навигатором, маршрутами, картой, АЗС и функциями сайта. Отвечай кратко и по делу. Не называй проблему подтверждённой, если её статус не confirmed. Не выдумывай пробки, перекрытия, цены или события навигации в реальном времени. Если сайт не может знать ответ, прямо скажи об этом. Отвечай на русском.`;
 
   const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
-  const historyText = history.length
-    ? history.map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.text}`).join("\n")
-    : "No previous conversation.";
-  const prompt = `${system}\n\nCurrent public report data (may be incomplete): ${JSON.stringify(reportContext)}\n\nConversation history:\n${historyText}\n\nLatest user message: ${message}`;
+  const rawHistory = Array.isArray(req.body?.history) ? req.body.history.slice(-12) : [];
+  const contents = [];
+  for (const item of rawHistory) {
+    if (!item || !['user','model'].includes(item.role)) continue;
+    const text = cleanText(item.text, 3000);
+    if (text) contents.push({ role: item.role, parts: [{ text }] });
+  }
+  // Always make the current message explicit, even if the client sent a short/old history.
+  if (!rawHistory.length || rawHistory[rawHistory.length - 1]?.text !== message) {
+    contents.push({ role: "user", parts: [{ text: message }] });
+  }
 
   try {
     const aiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -61,8 +61,9 @@ router.post("/chat", requireAuth, aiLimiter, async (req, res) => {
         "x-goog-api-key": apiKey,
       },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 700 },
+        systemInstruction: { parts: [{ text: `${system}\n\nCurrent public report data (may be incomplete): ${JSON.stringify(reportContext)}` }] },
+        contents,
+        generationConfig: { temperature: 0.2, maxOutputTokens: 900 },
       }),
     });
     const bodyText = await aiRes.text();

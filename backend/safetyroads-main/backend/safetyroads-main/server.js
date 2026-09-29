@@ -1,7 +1,4 @@
-const dotenv = require("dotenv");
-dotenv.config();
-// Render Secret File support: when present, load /etc/secrets/safetyroads.env.
-dotenv.config({ path: "/etc/secrets/safetyroads.env", override: false });
+require("dotenv").config();
 const path = require("path");
 const express = require("express");
 const helmet = require("helmet");
