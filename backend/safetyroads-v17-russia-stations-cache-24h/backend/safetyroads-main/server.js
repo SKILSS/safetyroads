@@ -15,6 +15,7 @@ const geocodeRoutes = require("./routes/geocode");
 const aiRoutes = require("./routes/ai");
 const { syncPrices } = require("./scripts/sync-prices");
 const { startDailyExternalSyncScheduler } = require("./scripts/sync-external-problems");
+const { startDailyRussiaStationSyncScheduler } = require("./scripts/sync-stations-russia");
 
 const app = express();
 app.set("trust proxy", 1); // needed behind Render/Railway/Cloudflare for real client IPs
@@ -66,6 +67,9 @@ async function start() {
   app.listen(port, () => console.log(`RegionWatch listening on :${port}`));
   schedulePriceSync();
   startDailyExternalSyncScheduler();
+  // Gas-station locations are synchronized in the background every 24h.
+  // Never block HTTP startup on the full Russia import.
+  startDailyRussiaStationSyncScheduler();
 }
 start().catch((err) => { console.error("Failed to start:", err); process.exit(1); });
 

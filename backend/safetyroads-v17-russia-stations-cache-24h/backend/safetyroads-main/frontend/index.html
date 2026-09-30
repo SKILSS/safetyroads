@@ -1496,13 +1496,15 @@
                     : L.layerGroup()
                 ).addTo(map);
                 stationsLayer = (L.markerClusterGroup
-                    ? L.markerClusterGroup({ maxClusterRadius: 50, disableClusteringAtZoom: 15 })
+                    ? L.markerClusterGroup({ maxClusterRadius: 50, disableClusteringAtZoom: 15, chunkedLoading: true, chunkInterval: 80, chunkDelay: 10 })
                     : L.layerGroup()
                 ).addTo(map);
 
-                // Подгружаем АЗС только в видимой области карты — меньше данных, меньше лагов.
+                // At low zoom the API returns the cached Russia-wide station set.
+                // It is loaded once and rendered in chunks so map startup stays responsive.
                 map.on('moveend', debounce(() => loadStations(false), 800));
                 map.on('click', (e) => navHandleMapPick(e.latlng));
+                setTimeout(() => loadStations(false), 150);
             }
 
             // ===== МИНИ-КАРТА ДЛЯ ВЫБОРА МЕСТА (модалка) =====
@@ -1695,42 +1697,43 @@
 
             async function loadStations(force = false) {
                 if (!map) return;
-
-                // At country view load the complete Russia-only station cache.
-                // MarkerCluster keeps the large marker set usable at low zoom.
                 if (map.getZoom() < 8) {
                     const query = 'country=RU';
-                    if (!force && query === lastStationsQuery) return;
+                    if (!force && query === lastStationsQuery && stations.length) return;
                     if (stationsLoadInFlight) return stationsLoadInFlight;
                     lastStationsQuery = query;
                     stationsLoadInFlight = apiRequest('/stations?' + query).then(data => {
                         stations = Array.isArray(data) ? data : [];
                         renderMapMarkers();
+                        if (!stations.length) {
+                            setTimeout(() => loadStations(true), 15000);
+                        }
                     }).catch(err => {
-                        document.getElementById('consoleMessage').innerText = lang === 'en' ? `❌ Failed to load Russian gas stations: ${err.message}` : `❌ Ошибка загрузки АЗС России: ${err.message}`;
-                    }).finally(() => {
-                        stationsLoadInFlight = null;
-                    });
+                        document.getElementById('consoleMessage').innerText = lang === 'en'
+                            ? `❌ Failed to load Russian gas stations: ${err.message}`
+                            : `❌ Ошибка загрузки АЗС России: ${err.message}`;
+                        setTimeout(() => loadStations(true), 15000);
+                    }).finally(() => { stationsLoadInFlight = null; });
                     return stationsLoadInFlight;
                 }
 
                 const b = map.getBounds();
-                // Round the viewport to prevent a request on every tiny pan/zoom.
-                const params = new URLSearchParams({
-                    minLat: b.getSouth().toFixed(3), minLng: b.getWest().toFixed(3),
-                    maxLat: b.getNorth().toFixed(3), maxLng: b.getEast().toFixed(3),
-                });
-                if (!force && query === lastStationsQuery) return;
+                const query = 'minLat=' + b.getSouth().toFixed(3)
+                    + '&minLng=' + b.getWest().toFixed(3)
+                    + '&maxLat=' + b.getNorth().toFixed(3)
+                    + '&maxLng=' + b.getEast().toFixed(3)
+                    + '&refresh=0';
+                if (!force && query === lastStationsQuery && stations.length) return;
                 if (stationsLoadInFlight) return stationsLoadInFlight;
                 lastStationsQuery = query;
                 stationsLoadInFlight = apiRequest('/stations?' + query).then(data => {
                     stations = Array.isArray(data) ? data : [];
                     renderMapMarkers();
                 }).catch(err => {
-                    document.getElementById('consoleMessage').innerText = lang === 'en' ? `❌ Failed to load gas stations: ${err.message}` : `❌ Ошибка загрузки АЗС: ${err.message}`;
-                }).finally(() => {
-                    stationsLoadInFlight = null;
-                });
+                    document.getElementById('consoleMessage').innerText = lang === 'en'
+                        ? `❌ Failed to load gas stations: ${err.message}`
+                        : `❌ Ошибка загрузки АЗС: ${err.message}`;
+                }).finally(() => { stationsLoadInFlight = null; });
                 return stationsLoadInFlight;
             }
 
@@ -2938,12 +2941,17 @@
                 document.querySelectorAll('.lang-btn').forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
                 loadProblems();
                 // Let the first map paint before fetching potentially large station data.
-                setTimeout(() => loadStations(true), 300);
+                setTimeout(() => loadStations(false), 300);
                 setInterval(() => {
                     if (document.hidden) return; // не тратим сеть/батарею, пока вкладка свёрнута
                     loadProblems();
-                    loadStations(true);
                 }, REFRESH_MS);
+                // Station coordinates are updated by the server once per 24h.
+                // Refresh the already-cached map data on the client only once per day.
+                setInterval(() => {
+                    if (document.hidden) return;
+                    loadStations(true);
+                }, 24 * 60 * 60 * 1000);
 
                 document.querySelectorAll('.tab').forEach((btn) => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
                 document.querySelectorAll('.theme-btn[data-theme]').forEach((btn) => btn.addEventListener('click', () => applyTheme(btn.dataset.theme)));
