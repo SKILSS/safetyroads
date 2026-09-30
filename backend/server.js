@@ -67,7 +67,21 @@ async function start() {
   // away. DB init and the heavy first import run afterwards, in the background.
   app.listen(port, "0.0.0.0", () => console.log(`RegionWatch listening on :${port}`));
 
-  await initSchema();
+  // Two instances can overlap during a deploy; concurrent ALTER TABLE then
+  // deadlocks (40P01). Retry a few times instead of crashing.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await initSchema();
+      break;
+    } catch (err) {
+      if (err.code === "40P01" && attempt < 6) {
+        console.warn(`[db] initSchema deadlock, retry ${attempt}/5 in 5s...`);
+        await new Promise((r) => setTimeout(r, 5000));
+      } else {
+        throw err;
+      }
+    }
+  }
 
   // First deployment: if the RU cache is empty, import Russian fuel stations
   // in the background. The server is already accepting requests meanwhile.
