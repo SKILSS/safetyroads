@@ -10,7 +10,8 @@
     "create-admin": "node scripts/create-admin.js",
     "sync-stations": "node scripts/sync-stations.js",
     "sync-prices": "node scripts/sync-prices.js",
-    "sync-external-problems": "node scripts/sync-external-problems.js"
+    "sync-external-problems": "node scripts/sync-external-problems.js",
+    "sync-stations-russia": "node scripts/sync-stations-russia.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

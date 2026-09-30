@@ -1481,7 +1481,7 @@
 
             // ===== ИНИЦИАЛИЗАЦИЯ ОСНОВНОЙ КАРТЫ (только просмотр) =====
             function initMap() {
-                map = L.map('map', { preferCanvas: true, zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false }).setView([55.76, 37.64], 11);
+                map = L.map('map', { preferCanvas: true, zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false }).setView([61.5, 95.0], 4.2);
                 const tileCfg = mapTileConfig();
                 mapTileLayer = L.tileLayer(tileCfg.url, {
                     attribution: tileCfg.attribution,
@@ -1695,14 +1695,31 @@
 
             async function loadStations(force = false) {
                 if (!map) return;
+
+                // At country view load the complete Russia-only station cache.
+                // MarkerCluster keeps the large marker set usable at low zoom.
+                if (map.getZoom() < 8) {
+                    const query = 'country=RU';
+                    if (!force && query === lastStationsQuery) return;
+                    if (stationsLoadInFlight) return stationsLoadInFlight;
+                    lastStationsQuery = query;
+                    stationsLoadInFlight = apiRequest('/stations?' + query).then(data => {
+                        stations = Array.isArray(data) ? data : [];
+                        renderMapMarkers();
+                    }).catch(err => {
+                        document.getElementById('consoleMessage').innerText = lang === 'en' ? `❌ Failed to load Russian gas stations: ${err.message}` : `❌ Ошибка загрузки АЗС России: ${err.message}`;
+                    }).finally(() => {
+                        stationsLoadInFlight = null;
+                    });
+                    return stationsLoadInFlight;
+                }
+
                 const b = map.getBounds();
                 // Round the viewport to prevent a request on every tiny pan/zoom.
                 const params = new URLSearchParams({
                     minLat: b.getSouth().toFixed(3), minLng: b.getWest().toFixed(3),
                     maxLat: b.getNorth().toFixed(3), maxLng: b.getEast().toFixed(3),
                 });
-                if (map.getZoom() < 8) params.set('refresh', '0');
-                const query = params.toString();
                 if (!force && query === lastStationsQuery) return;
                 if (stationsLoadInFlight) return stationsLoadInFlight;
                 lastStationsQuery = query;

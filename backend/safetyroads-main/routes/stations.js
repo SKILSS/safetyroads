@@ -101,6 +101,25 @@ async function syncOsmBbox(bbox) {
 // to lazily discover missing OSM stations, so moving around the map fills the
 // local cache without loading tens of thousands of markers at once.
 router.get("/", async (req, res) => {
+  // Country mode is used by the frontend at low zoom so the whole Russian
+  // station dataset can be displayed at once. Only explicitly RU rows are
+  // returned here; legacy/foreign rows are never exposed.
+  if (String(req.query.country || "").toUpperCase() === "RU") {
+    try {
+      const result = await pool.query(
+        `SELECT * FROM gas_stations
+         WHERE country_code='RU'
+         ORDER BY updated_at DESC
+         LIMIT 50000`
+      );
+      res.set("Cache-Control", "public, max-age=120");
+      return res.json(result.rows);
+    } catch (err) {
+      console.error("[stations] GET country failed:", err);
+      return res.status(500).json({ error: "Failed to load Russian gas stations." });
+    }
+  }
+
   const bbox = validBbox(req.query);
   try {
     if (bbox) {

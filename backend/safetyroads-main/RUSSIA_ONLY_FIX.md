@@ -10,3 +10,7 @@ This version fixes legacy foreign data (including Finland) that could remain in 
 - User-created reports still require a Russian region.
 
 The fix does not claim that an RSS feed contains every Russian report; it filters the configured sources to Russian context.
+
+
+## Full Russia gas-station dataset
+The map now supports a complete Russia-only station cache via `scripts/sync-stations-russia.js` and `/stations?country=RU`. The low-zoom map loads the full RU cache with marker clustering; high zoom keeps viewport loading for performance. Foreign station rows are excluded by `country_code='RU'` in country mode.
