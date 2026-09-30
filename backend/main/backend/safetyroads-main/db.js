@@ -120,6 +120,9 @@ async function initSchema() {
     INSERT INTO external_sync_state (sync_key, status)
       VALUES ('daily_russia_stations', 'never')
       ON CONFLICT (sync_key) DO NOTHING;
+    INSERT INTO external_sync_state (sync_key, status)
+      VALUES ('daily_russia_prices', 'never')
+      ON CONFLICT (sync_key) DO NOTHING;
 
     CREATE TABLE IF NOT EXISTS app_settings (
       id INTEGER PRIMARY KEY DEFAULT 1,

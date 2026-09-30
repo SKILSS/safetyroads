@@ -110,7 +110,7 @@ router.get("/", async (req, res) => {
         `SELECT * FROM gas_stations
          WHERE country_code='RU'
          ORDER BY updated_at DESC
-         LIMIT 50000`
+         LIMIT 100000`
       );
       res.set("Cache-Control", "public, max-age=120");
       return res.json(result.rows);
@@ -140,13 +140,13 @@ router.get("/", async (req, res) => {
       );
       // Hide legacy foreign cache rows. Fresh OSM rows are constrained by the
       // Russian Federation area query above; this extra guard handles old data.
-      const rows = result.rows.filter((row) => row.country_code === 'RU' || isLikelyRussianRegion(row.region_name));
+      const rows = result.rows.filter((row) => row.country_code === 'RU');
       res.set("Cache-Control", "public, max-age=20");
       return res.json(rows);
     }
 
     const result = await pool.query("SELECT * FROM gas_stations ORDER BY updated_at DESC LIMIT 12000");
-    const rows = result.rows.filter((row) => row.country_code === 'RU' || isLikelyRussianRegion(row.region_name));
+    const rows = result.rows.filter((row) => row.country_code === 'RU');
     res.set("Cache-Control", "public, max-age=30");
     res.json(rows);
   } catch (err) {

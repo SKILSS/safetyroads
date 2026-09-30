@@ -1094,7 +1094,7 @@
                         <input type="text" id="priceApiUrlInput" placeholder="URL провайдера, напр. https://api.omt-consult.ru/v2/stations" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
                         <input type="password" id="priceApiKeyInput" placeholder="Bearer-токен провайдера (оставьте пустым, чтобы не менять)" style="width:100%;margin-top:8px;padding:10px 14px;border-radius:30px;border:1px solid #31445c;background:#101b28;color:#dce6f0;" />
                         <div id="priceApiStatus" style="font-size:0.75rem;color:#7e92b0;margin-top:6px;"></div>
-                        <div id="priceApiDescription" style="font-size:0.7rem;color:#7e92b0;margin-top:4px;">Сервер автоматически использует открытые агрегированные данные «Ехай» как ориентир и, если настроен, точные данные станционного провайдера (например, Benzup). Точные цены помечаются отдельно от медианных. Синхронизация выполняется автоматически каждый час.</div>
+                        <div id="priceApiDescription" style="font-size:0.7rem;color:#7e92b0;margin-top:4px;">Сервер автоматически использует открытые агрегированные данные «Ехай» как ориентир и, если настроен, точные данные станционного провайдера (например, Benzup). Точные цены помечаются отдельно от медианных. Синхронизация выполняется автоматически раз в 24 часа из интернет-источника.</div>
                         <button type="button" id="savePriceApi" style="width:100%;margin-top:8px;padding:10px;border-radius:30px;border:none;background:#f5a623;color:#111;font-weight:700;cursor:pointer;">Сохранить провайдера цен</button>
                     </div>
                     <div class="settings-row" style="display:block;border-top:1px solid #29394e;padding-top:12px;">
@@ -1236,7 +1236,7 @@
                     chatPlaceholder:'Напишите...', supportTitle:'💬 Поддержка', supportSubtitle:'ИИ-помощник SafetyRoad отвечает на вопросы о сайте, карте и проблемах.', supportPlaceholder:'Напишите вопрос…', supportSend:'➤', supportThinking:'🤖 Gemini думает…', supportError:'Не удалось получить ответ Gemini.',
                     geminiPlaceholder:'Вставьте ключ Google Gemini или оставьте пустым, чтобы не менять', priceApiUrlPlaceholder:'URL провайдера, напр. https://api.omt-consult.ru/v2/stations', priceApiKeyPlaceholder:'Bearer-токен провайдера (оставьте пустым, чтобы не менять)',
                     stationNamePlaceholder:'Название АЗС', stationHint:'Выберите место на карте, затем нажмите «Добавить АЗС в выбранной точке»',
-                    serverPriceNote:'Сервер автоматически использует открытые агрегированные данные «Ехай» как ориентир и, если настроен, точные данные станционного провайдера (например, Benzup). Точные цены помечаются отдельно от медианных. Синхронизация выполняется автоматически каждый час.',
+                    serverPriceNote:'Сервер автоматически использует открытые агрегированные данные «Ехай» как ориентир и, если настроен, точные данные станционного провайдера (например, Benzup). Точные цены помечаются отдельно от медианных. Синхронизация выполняется автоматически раз в 24 часа из интернет-источника.',
                     addStation:'➕ Добавить АЗС в выбранной точке',
                     problem:'➕ Сообщить о проблеме', choose:'📍 Выбрать место на карте',
                     fileChoose:'📷 Выбрать файл', fileNone:'Файл не выбран',
@@ -1504,7 +1504,7 @@
                 // It is loaded once and rendered in chunks so map startup stays responsive.
                 map.on('moveend', debounce(() => loadStations(false), 800));
                 map.on('click', (e) => navHandleMapPick(e.latlng));
-                setTimeout(() => loadStations(false), 150);
+                loadStations(false);
             }
 
             // ===== МИНИ-КАРТА ДЛЯ ВЫБОРА МЕСТА (модалка) =====
@@ -2940,8 +2940,8 @@
                 applyLanguage(localStorage.getItem('lang') || 'ru');
                 document.querySelectorAll('.lang-btn').forEach(btn => btn.addEventListener('click', () => applyLanguage(btn.dataset.lang)));
                 loadProblems();
-                // Let the first map paint before fetching potentially large station data.
-                setTimeout(() => loadStations(false), 300);
+                // Load the complete Russian station cache immediately on startup.
+                loadStations(false);
                 setInterval(() => {
                     if (document.hidden) return; // не тратим сеть/батарею, пока вкладка свёрнута
                     loadProblems();

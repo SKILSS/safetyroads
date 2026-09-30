@@ -13,7 +13,7 @@ const adminRoutes = require("./routes/admin");
 const stationsRoutes = require("./routes/stations");
 const geocodeRoutes = require("./routes/geocode");
 const aiRoutes = require("./routes/ai");
-const { syncPrices } = require("./scripts/sync-prices");
+const { runDailyPriceSync } = require("./scripts/sync-prices");
 const { startDailyExternalSyncScheduler } = require("./scripts/sync-external-problems");
 const { startDailyRussiaStationSyncScheduler } = require("./scripts/sync-stations-russia");
 
@@ -52,23 +52,37 @@ app.use((err, req, res, next) => {
 });
 
 const port = process.env.PORT || 8080;
-const PRICE_SYNC_INTERVAL_MS = 60 * 60 * 1000; // 1 hour; sources publish several updates per day
+const PRICE_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // exactly once per 24h
 
 function schedulePriceSync() {
   const run = () => {
-    syncPrices().catch((err) => console.error("[sync-prices] scheduled run failed:", err));
+    runDailyPriceSync().catch((err) => console.error("[sync-prices] daily run failed:", err));
   };
-  run(); // one run right after startup, then every 24h
+  run(); // runs immediately only when the 24h cache is due
   setInterval(run, PRICE_SYNC_INTERVAL_MS);
 }
 
 async function start() {
   await initSchema();
+
+  // First deployment: if the RU cache is empty, fill it before exposing the
+  // site. After that, every restart serves the cached Russian stations
+  // immediately while the 24h scheduler keeps the dataset fresh.
+  const stationCount = await pool.query(
+    `SELECT COUNT(*)::int AS count FROM gas_stations WHERE country_code='RU'`
+  );
+  if (stationCount.rows[0].count === 0 && process.env.STATIONS_SYNC_BEFORE_LISTEN !== "false") {
+    console.log("[stations] RU cache is empty; importing Russian fuel stations before first listen...");
+    try {
+      await require("./scripts/sync-stations-russia").syncRussiaStations();
+    } catch (err) {
+      console.error("[stations] initial RU import failed; starting server anyway:", err.message);
+    }
+  }
+
   app.listen(port, () => console.log(`RegionWatch listening on :${port}`));
   schedulePriceSync();
   startDailyExternalSyncScheduler();
-  // Gas-station locations are synchronized in the background every 24h.
-  // Never block HTTP startup on the full Russia import.
   startDailyRussiaStationSyncScheduler();
 }
 start().catch((err) => { console.error("Failed to start:", err); process.exit(1); });
