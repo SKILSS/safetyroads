@@ -14,6 +14,7 @@ const fs = require('fs');
 const path = require('path');
 const Parser = require('rss-parser');
 const { pool, initSchema } = require('../db');
+const { isLikelyRussianRegion } = require('../utils/russia');
 
 const parser = new Parser({
   timeout: 25000,
@@ -202,9 +203,27 @@ async function syncExternalProblems() {
   await initSchema();
   const osm = await syncOsm();
   const rss = await syncRss();
+
+  // Retire legacy foreign imports immediately. Current OSM imports are already
+  // restricted by the RU country boundary; this cleans rows created by older
+  // rectangular-bbox versions of SafetyRoad.
+  const foreignRows = (await pool.query(
+    `SELECT id, region, source_reason FROM problems
+     WHERE source_type IN ('osm','rss') AND status NOT IN ('resolved','withdrawn')
+     LIMIT 5000`
+  )).rows;
+  let foreignRetired = 0;
+  for (const row of foreignRows) {
+    const text = `${row.region || ''} ${row.source_reason || ''}`;
+    if (!isLikelyRussianRegion(text) && !/(?:Россия|РФ|Russian Federation)/iu.test(text)) {
+      await pool.query(`UPDATE problems SET status='resolved', resolved_at=COALESCE(resolved_at,now()) WHERE id=$1`, [row.id]);
+      foreignRetired++;
+    }
+  }
+
   const staleOsm = await pool.query(`UPDATE problems SET status='resolved' WHERE source_type='osm' AND status='new' AND source_last_seen_at < now() - interval '14 days'`);
   const staleRss = await pool.query(`UPDATE problems SET status='resolved' WHERE source_type='rss' AND status='new' AND imported_at < now() - make_interval(days => $1)`, [RSS_MAX_AGE_DAYS]);
-  return { ok: true, osmInserted: osm, rssInserted: rss, staleOsm: staleOsm.rowCount, staleRss: staleRss.rowCount, finishedAt: new Date().toISOString() };
+  return { ok: true, osmInserted: osm, rssInserted: rss, foreignRetired, staleOsm: staleOsm.rowCount, staleRss: staleRss.rowCount, finishedAt: new Date().toISOString() };
 }
 
 const DAILY_SYNC_KEY = 'daily_external_problems';

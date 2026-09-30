@@ -2,6 +2,7 @@ const express = require("express");
 const { pool } = require("../db");
 const { requireAdmin } = require("../middleware/auth");
 const { writeLimiter } = require("../middleware/security");
+const { isLikelyRussianRegion } = require("../utils/russia");
 
 const router = express.Router();
 
@@ -53,8 +54,9 @@ async function syncOsmBbox(bbox) {
   });
   if (!res.ok) throw new Error(`Overpass request failed: ${res.status}`);
   const data = await res.json();
+  const elements = Array.isArray(data.elements) ? data.elements : [];
 
-  for (const el of data.elements || []) {
+  for (const el of elements) {
     const lat = el.lat ?? el.center?.lat;
     const lng = el.lon ?? el.center?.lon;
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
@@ -65,12 +67,32 @@ async function syncOsmBbox(bbox) {
     const osmId = `${el.type}/${el.id}`;
     await pool.query(
       `INSERT INTO gas_stations
-        (name, brand, region_name, lat, lng, source, osm_id, updated_at)
-       VALUES ($1,$2,$3,$4,$5,'osm',$6,now())
+        (name, brand, region_name, lat, lng, source, osm_id, country_code, updated_at)
+       VALUES ($1,$2,$3,$4,$5,'osm',$6,'RU',now())
        ON CONFLICT (osm_id) DO UPDATE SET
          name=EXCLUDED.name, brand=EXCLUDED.brand, region_name=COALESCE(EXCLUDED.region_name,gas_stations.region_name),
-         lat=EXCLUDED.lat, lng=EXCLUDED.lng, updated_at=now()`,
+         lat=EXCLUDED.lat, lng=EXCLUDED.lng, country_code='RU', updated_at=now()`,
       [name, brand, region, lat, lng, osmId]
+    );
+  }
+
+  // Purge cached OSM stations inside this viewport that are not present in the
+  // fresh Russia-only Overpass result. This removes old Finland/foreign rows
+  // left by earlier versions that used rectangular viewports. Never run this
+  // cleanup after an Overpass error because the authoritative result is then unknown.
+  const osmIds = elements.map((el) => `${el.type}/${el.id}`);
+  if (osmIds.length) {
+    await pool.query(
+      `DELETE FROM gas_stations
+       WHERE source='osm' AND lat BETWEEN $1 AND $3 AND lng BETWEEN $2 AND $4
+         AND osm_id IS NOT NULL AND NOT (osm_id = ANY($5::text[]))`,
+      [bbox.minLat,bbox.minLng,bbox.maxLat,bbox.maxLng,osmIds]
+    );
+  } else {
+    await pool.query(
+      `DELETE FROM gas_stations
+       WHERE source='osm' AND lat BETWEEN $1 AND $3 AND lng BETWEEN $2 AND $4`,
+      [bbox.minLat,bbox.minLng,bbox.maxLat,bbox.maxLng]
     );
   }
 }
@@ -97,13 +119,17 @@ router.get("/", async (req, res) => {
          LIMIT 12000`,
         [bbox.minLat,bbox.minLng,bbox.maxLat,bbox.maxLng]
       );
+      // Hide legacy foreign cache rows. Fresh OSM rows are constrained by the
+      // Russian Federation area query above; this extra guard handles old data.
+      const rows = result.rows.filter((row) => row.country_code === 'RU' || isLikelyRussianRegion(row.region_name));
       res.set("Cache-Control", "public, max-age=20");
-      return res.json(result.rows);
+      return res.json(rows);
     }
 
     const result = await pool.query("SELECT * FROM gas_stations ORDER BY updated_at DESC LIMIT 12000");
+    const rows = result.rows.filter((row) => row.country_code === 'RU' || isLikelyRussianRegion(row.region_name));
     res.set("Cache-Control", "public, max-age=30");
-    res.json(result.rows);
+    res.json(rows);
   } catch (err) {
     console.error("[stations] GET failed:", err);
     res.status(500).json({ error: "Failed to load gas stations." });
@@ -119,8 +145,8 @@ router.post("/", requireAdmin, writeLimiter, async (req, res) => {
   const result = await pool.query(
     `INSERT INTO gas_stations
       (name, brand, region_name, lat, lng, price_92, price_95, price_98, price_dt,
-       price_source, price_kind, price_updated_at, source, updated_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'manual','manual',now(),'manual',now())
+       price_source, price_kind, price_updated_at, source, country_code, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'manual','manual',now(),'manual','RU',now())
      RETURNING *`,
     [name, brand || null, regionName || null, lat, lng, price92 ?? null, price95 ?? null, price98 ?? null, priceDt ?? null]
   );

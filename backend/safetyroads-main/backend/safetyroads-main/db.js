@@ -94,6 +94,7 @@ async function initSchema() {
       price_kind TEXT, -- exact | brand_median | region_median | manual
       price_updated_at TIMESTAMPTZ,
       source TEXT NOT NULL DEFAULT 'manual', -- 'manual' | 'osm' | 'provider'
+      country_code TEXT, -- SafetyRoad currently publishes stations only for RU
       osm_id TEXT UNIQUE, -- prevents duplicate rows when the sync script re-runs
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
@@ -102,6 +103,7 @@ async function initSchema() {
     ALTER TABLE gas_stations ADD COLUMN IF NOT EXISTS price_source TEXT;
     ALTER TABLE gas_stations ADD COLUMN IF NOT EXISTS price_kind TEXT;
     ALTER TABLE gas_stations ADD COLUMN IF NOT EXISTS price_updated_at TIMESTAMPTZ;
+    ALTER TABLE gas_stations ADD COLUMN IF NOT EXISTS country_code TEXT;
 
     -- Single-row table: only the admin can ever write to it (see routes/admin.js).
     -- The Gemini key lives here, server-side, never sent to the browser.

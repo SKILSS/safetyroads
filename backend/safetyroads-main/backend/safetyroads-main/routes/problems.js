@@ -2,23 +2,27 @@ const express = require("express");
 const { pool } = require("../db");
 const { requireAuth, requireAdmin, optionalAuth } = require("../middleware/auth");
 const { writeLimiter, aiLimiter } = require("../middleware/security");
+const { isLikelyRussianRegion } = require("../utils/russia");
 
 const router = express.Router();
 
 // SafetyRoad currently publishes road-problem data only for the Russian Federation.
 // The UI also limits address search to country=ru; this server-side guard prevents
 // a manually supplied foreign region from becoming a user report.
-const RU_REGION_RE = /(?:росси|рф|москв|санкт[- ]?петербург|ленинградск|московск|краснодарск|ростовск|воронежск|нижегородск|самарск|свердловск|новосибирск|тюменск|омск|иркутск|красноярск|приморск|хабаровск|кемеровск|челябинск|пермск|башкортостан|татарстан|дагестан|крым|севастопол|алтайск|бурят|карели|коми|мордов|удмурт|чуваш|якут|саха)/i;
+
 
 router.get("/", async (req, res) => {
   const { region } = req.query;
-  const result = region
-    ? await pool.query("SELECT * FROM problems WHERE region = $1 ORDER BY created_at DESC LIMIT 300", [region])
-    : await pool.query("SELECT * FROM problems ORDER BY created_at DESC LIMIT 300");
-  // This is the shared public SafetyRoad dataset. External/imported reports
-  // are intentionally not tied to a user profile.
+  // Keep legacy foreign imports out of the public map as well. New external
+  // imports are already constrained by the Russia OSM area query, but old rows
+  // can survive in PostgreSQL after a code update.
+  const params = [];
+  let where = `status NOT IN ('resolved','withdrawn') AND (source_type = 'user' OR (source_type IN ('osm','rss') AND source_reason IS NOT NULL))`;
+  if (region) { params.push(region); where += ` AND region = $${params.length}`; }
+  const result = await pool.query(`SELECT * FROM problems WHERE ${where} ORDER BY created_at DESC LIMIT 500`, params);
+  const rows = result.rows.filter((row) => row.source_type === 'user' || isLikelyRussianRegion(row.region) || /(?:Россия|РФ|Russian Federation)/iu.test(String(row.source_reason || '')));
   res.set("Cache-Control", "public, max-age=15");
-  res.json(result.rows);
+  res.json(rows);
 });
 
 // Only reports created by the signed-in user belong in the user's profile.
