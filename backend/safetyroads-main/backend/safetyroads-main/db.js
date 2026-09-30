@@ -68,6 +68,7 @@ async function initSchema() {
     ALTER TABLE problems ADD COLUMN IF NOT EXISTS external_id TEXT;
     ALTER TABLE problems ADD COLUMN IF NOT EXISTS imported_at TIMESTAMPTZ;
     ALTER TABLE problems ADD COLUMN IF NOT EXISTS source_last_seen_at TIMESTAMPTZ;
+    ALTER TABLE problems ADD COLUMN IF NOT EXISTS source_reason TEXT;
     UPDATE problems SET source_type='user' WHERE source_type IS NULL OR source_type='';
     CREATE INDEX IF NOT EXISTS idx_problems_source_type ON problems(source_type);
     CREATE INDEX IF NOT EXISTS idx_problems_created_by ON problems(created_by);

@@ -5,6 +5,11 @@ const { writeLimiter, aiLimiter } = require("../middleware/security");
 
 const router = express.Router();
 
+// SafetyRoad currently publishes road-problem data only for the Russian Federation.
+// The UI also limits address search to country=ru; this server-side guard prevents
+// a manually supplied foreign region from becoming a user report.
+const RU_REGION_RE = /(?:росси|рф|москв|санкт[- ]?петербург|ленинградск|московск|краснодарск|ростовск|воронежск|нижегородск|самарск|свердловск|новосибирск|тюменск|омск|иркутск|красноярск|приморск|хабаровск|кемеровск|челябинск|пермск|башкортостан|татарстан|дагестан|крым|севастопол|алтайск|бурят|карели|коми|мордов|удмурт|чуваш|якут|саха)/i;
+
 router.get("/", async (req, res) => {
   const { region } = req.query;
   const result = region
@@ -139,6 +144,9 @@ router.post("/", requireAuth, writeLimiter, async (req, res) => {
   if (!region || !titleRu || !titleEn) {
     return res.status(400).json({ error: "region, titleRu and titleEn are required." });
   }
+  if (!RU_REGION_RE.test(String(region))) {
+    return res.status(400).json({ error: "SafetyRoad принимает дорожные проблемы только на территории РФ." });
+  }
 
   const image = imageDataUrl ? parseDataUrl(imageDataUrl) : null;
   if (imageDataUrl && !image) {
@@ -183,11 +191,11 @@ router.post("/", requireAuth, writeLimiter, async (req, res) => {
   }
 
   const result = await pool.query(
-    `INSERT INTO problems (region, category, severity, status, title_ru, title_en, image_data, ai_verdict, ai_status, ai_matches, ai_confidence, ai_detected, ai_checked_at, lat, lng, is_road, route, created_by, source_type)
-     VALUES ($1,$2,$3,'new',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'user') RETURNING *`,
+    `INSERT INTO problems (region, category, severity, status, title_ru, title_en, image_data, ai_verdict, ai_status, ai_matches, ai_confidence, ai_detected, ai_checked_at, lat, lng, is_road, route, created_by, source_type, source_reason)
+     VALUES ($1,$2,$3,'new',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'user',$18) RETURNING *`,
     [region, category || "other", severity || "med", titleRu, titleEn, image?.data || null, aiVerdict,
       aiStatus, aiMatches, aiConfidence, aiDetected, aiCheckedAt, safeLat, safeLng, roadMode,
-      safeRoute ? JSON.stringify(safeRoute) : null, req.user.id]
+      safeRoute ? JSON.stringify(safeRoute) : null, req.user.id, 'Добавлена пользователем и проверена правилами SafetyRoad']
   );
   res.status(201).json({ ...result.rows[0], ai_error: aiError });
 });

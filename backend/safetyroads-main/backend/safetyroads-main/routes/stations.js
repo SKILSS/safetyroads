@@ -37,10 +37,11 @@ async function syncOsmBbox(bbox) {
 
   const query = `
     [out:json][timeout:25];
+    area["ISO3166-1"="RU"][boundary="administrative"]->.russia;
     (
-      node["amenity"="fuel"](${bbox.minLat},${bbox.minLng},${bbox.maxLat},${bbox.maxLng});
-      way["amenity"="fuel"](${bbox.minLat},${bbox.minLng},${bbox.maxLat},${bbox.maxLng});
-      relation["amenity"="fuel"](${bbox.minLat},${bbox.minLng},${bbox.maxLat},${bbox.maxLng});
+      node["amenity"="fuel"](area.russia)(${bbox.minLat},${bbox.minLng},${bbox.maxLat},${bbox.maxLng});
+      way["amenity"="fuel"](area.russia)(${bbox.minLat},${bbox.minLng},${bbox.maxLat},${bbox.maxLng});
+      relation["amenity"="fuel"](area.russia)(${bbox.minLat},${bbox.minLng},${bbox.maxLat},${bbox.maxLng});
     );
     out center tags;
   `;

@@ -39,18 +39,13 @@ const RSS_FEEDS = (process.env.EXTERNAL_RSS_FEEDS || [
   'https://news.google.com/rss/search?q=Россия+подтопление+дороги&hl=ru&gl=RU&ceid=RU:ru'
 ].join('\n')).split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
 
-const OVERPASS_BBOXES = [
-  [41.0, 19.0, 55.0, 60.0],
-  [41.0, 60.0, 55.0, 90.0],
-  [41.0, 90.0, 55.0, 120.0],
-  [41.0, 120.0, 55.0, 180.0],
-  [55.0, 19.0, 70.0, 60.0],
-  [55.0, 60.0, 70.0, 100.0],
-  [55.0, 100.0, 70.0, 140.0],
-  [55.0, 140.0, 70.0, 180.0],
-  [70.0, 19.0, 82.0, 90.0],
-  [70.0, 90.0, 82.0, 180.0]
-];
+const RUSSIA_AREA_QUERY = `area["ISO3166-1"="RU"][boundary="administrative"]->.russia;`;
+
+// External collection is intentionally restricted to the Russian Federation.
+// Using the OSM country boundary avoids the old rectangular bboxes, which also
+// covered neighbouring countries.
+const RUSSIA_CONTEXT_RE = /(?:росси(?:я|и|йский|йская|йское|йские)|рф|российск\w*|москв\w*|санкт[- ]?петербург\w*|ленинградск\w*|московск\w*|краснодарск\w*|ростовск\w*|воронежск\w*|нижегородск\w*|самарск\w*|свердловск\w*|новосибирск\w*|тюменск\w*|омск\w*|иркутск\w*|красноярск\w*|приморск\w*|хабаровск\w*|кемеровск\w*|челябинск\w*|пермск\w*|башкортостан\w*|татарстан\w*|дагестан\w*|крым\w*|севастопол\w*|алтайск\w*|бурят\w*|карели\w*|коми\w*|мордов\w*|удмурт\w*|чуваш\w*|якут\w*|саха\w*)/i;
+
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -100,7 +95,7 @@ function normalizeRegion(text) {
   return null;
 }
 
-async function insertExternal({ externalId, region, category, severity, titleRu, titleEn, lat, lng, sourceType, sourceName, sourceUrl }) {
+async function insertExternal({ externalId, region, category, severity, titleRu, titleEn, lat, lng, sourceType, sourceName, sourceUrl, sourceReason }) {
   if (!externalId) return false;
   const exists = await pool.query('SELECT id FROM problems WHERE source_type=$1 AND external_id=$2 LIMIT 1', [sourceType, externalId]);
   if (exists.rows.length) {
@@ -110,10 +105,10 @@ async function insertExternal({ externalId, region, category, severity, titleRu,
   await pool.query(`
     INSERT INTO problems
       (region, category, severity, status, title_ru, title_en, lat, lng, created_by,
-       source_type, source_name, source_url, external_id, imported_at)
-    VALUES ($1,$2,$3,'new',$4,$5,$6,$7,NULL,$8,$9,$10,$11,now())
+       source_type, source_name, source_url, external_id, imported_at, source_last_seen_at, source_reason)
+    VALUES ($1,$2,$3,'new',$4,$5,$6,$7,NULL,$8,$9,$10,$11,now(),now(),$12)
   `, [region || 'Россия', category, severity, clamp(titleRu, 300), clamp(titleEn || titleRu, 300), lat, lng,
-      sourceType, clamp(sourceName, 120), clamp(sourceUrl, 1000), externalId]);
+      sourceType, clamp(sourceName, 120), clamp(sourceUrl, 1000), externalId, clamp(sourceReason, 500)]);
   return true;
 }
 
@@ -141,37 +136,36 @@ async function fetchOverpass(query) {
 
 async function syncOsm() {
   let inserted = 0;
-  for (const [s,w,n,e] of OVERPASS_BBOXES) {
-    const q = `[out:json][timeout:120];(\n` +
-      `nwr["hazard"](${s},${w},${n},${e});\n` +
-      `nwr["surface"="mud"](${s},${w},${n},${e});\n` +
-      `nwr["smoothness"~"^(very_bad|horrible|impassable)$"](${s},${w},${n},${e});\n` +
-      `nwr["highway"="construction"](${s},${w},${n},${e});\n` +
-      `nwr["roadworks"](${s},${w},${n},${e});\n` +
-      `);out center tags;`;
-    try {
-      const data = await fetchOverpass(q);
-      for (const el of data.elements || []) {
-        const tags = el.tags || {};
-        const [lat,lng] = elementPoint(el);
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-        const raw = Object.entries(tags).map(([k,v]) => `${k}=${v}`).join(', ');
-        const c = classify(raw, raw);
-        const title = tags.name ? `${tags.name}: ${c.kind}` : `Дорожная проблема OSM: ${c.kind}`;
-        inserted += await insertExternal({
-          externalId: `osm:${el.type}:${el.id}`,
-          region: normalizeRegion(tags['addr:region'] || tags['addr:state'] || tags.name) || 'Россия',
-          category: c.category, severity: c.severity,
-          titleRu: title, titleEn: `OSM road problem: ${c.kind}`,
-          lat, lng, sourceType: 'osm', sourceName: 'OpenStreetMap',
-          sourceUrl: `https://www.openstreetmap.org/${el.type}/${el.id}`
-        }) ? 1 : 0;
-      }
-    } catch (e) { console.error('[external/osm] bbox failed:', e.message); }
-    await sleep(1200);
-  }
+  const q = `[out:json][timeout:300];${RUSSIA_AREA_QUERY}(` +
+    `nwr["hazard"](area.russia);` +
+    `nwr["surface"="mud"](area.russia);` +
+    `nwr["smoothness"~"^(very_bad|horrible|impassable)$"](area.russia);` +
+    `nwr["highway"="construction"](area.russia);` +
+    `nwr["roadworks"](area.russia);` +
+    `);out center tags;`;
+  try {
+    const data = await fetchOverpass(q);
+    for (const el of data.elements || []) {
+      const tags = el.tags || {};
+      const [lat,lng] = elementPoint(el);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      const raw = Object.entries(tags).map(([k,v]) => `${k}=${v}`).join(', ');
+      const c = classify(raw, raw);
+      const title = tags.name ? `${tags.name}: ${c.kind}` : `Дорожная проблема OSM: ${c.kind}`;
+      inserted += await insertExternal({
+        externalId: `osm:${el.type}:${el.id}`,
+        region: normalizeRegion(tags['addr:region'] || tags['addr:state'] || tags.name) || 'Россия',
+        category: c.category, severity: c.severity,
+        titleRu: title, titleEn: `OSM road problem: ${c.kind}`,
+        lat, lng, sourceType: 'osm', sourceName: 'OpenStreetMap',
+        sourceUrl: `https://www.openstreetmap.org/${el.type}/${el.id}`,
+        sourceReason: `Внешние данные OpenStreetMap: обнаружен признак «${c.kind}» в тегах объекта.`
+      }) ? 1 : 0;
+    }
+  } catch (e) { console.error('[external/osm] Russia area query failed:', e.message); }
   return inserted;
 }
+
 
 async function syncRss() {
   let inserted = 0;
@@ -187,13 +181,16 @@ async function syncRss() {
         const title = stripHtml(item.title || '');
         const text = stripHtml(item.contentSnippet || item.content || item.summary || '');
         if (!title) continue;
+        const russianContext = `${title} ${text}`;
+        if (!RUSSIA_CONTEXT_RE.test(russianContext)) continue;
         const c = classify(title, text);
-        const region = normalizeRegion(`${title} ${text}`) || 'Россия';
+        const region = normalizeRegion(russianContext) || 'Россия';
         const sourceUrl = item.link || url;
         const externalId = `rss:${hashId(sourceUrl + '|' + (item.guid || title))}`;
         inserted += await insertExternal({ externalId, region, category: c.category, severity: c.severity,
           titleRu: title, titleEn: `Road issue: ${c.kind}`, lat: null, lng: null,
-          sourceType: 'rss', sourceName: feed.title || 'RSS', sourceUrl }) ? 1 : 0;
+          sourceType: 'rss', sourceName: feed.title || 'RSS', sourceUrl,
+          sourceReason: `Внешний источник: публикация о дорожной проблеме в РФ (${c.kind}).` }) ? 1 : 0;
       }
     } catch (e) { console.error('[external/rss] feed failed:', url, e.message); }
     await sleep(500);

@@ -30,9 +30,10 @@ const DEFAULT_BBOX = "55.0,36.0,56.6,38.5"; // Moscow + Moscow Region — pass y
 async function fetchStations(bbox) {
   const query = `
     [out:json][timeout:60];
+    area["ISO3166-1"="RU"][boundary="administrative"]->.russia;
     (
-      node["amenity"="fuel"](${bbox});
-      way["amenity"="fuel"](${bbox});
+      node["amenity"="fuel"](area.russia)(${bbox});
+      way["amenity"="fuel"](area.russia)(${bbox});
     );
     out center tags;
   `;

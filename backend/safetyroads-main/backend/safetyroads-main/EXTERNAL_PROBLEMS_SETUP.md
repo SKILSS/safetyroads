@@ -27,3 +27,7 @@ Optional custom feeds:
 Prefer official/public RSS or APIs over scraping pages.
 
 The importer only keeps recent RSS items (default 7 days) and marks OSM items not seen for 14 days as resolved. This avoids an ever-growing list of stale external reports.
+
+
+## География источников
+SafetyRoad собирает внешние дорожные проблемы только на территории РФ. OpenStreetMap запрашивается через административную границу страны ISO3166-1=RU, а RSS-фильтр требует российский контекст. Прямоугольные зоны, захватывающие соседние государства, больше не используются.
