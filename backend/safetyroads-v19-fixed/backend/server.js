@@ -63,28 +63,33 @@ function schedulePriceSync() {
 }
 
 async function start() {
+  // Open the port FIRST so Render (and other hosts) detect the service right
+  // away. DB init and the heavy first import run afterwards, in the background.
+  app.listen(port, "0.0.0.0", () => console.log(`RegionWatch listening on :${port}`));
+
   await initSchema();
 
-  // First deployment: if the RU cache is empty, fill it before exposing the
-  // site. After that, every restart serves the cached Russian stations
-  // immediately while the 24h scheduler keeps the dataset fresh.
-  const stationCount = await pool.query(
-    `SELECT COUNT(*)::int AS count FROM gas_stations WHERE country_code='RU'`
-  );
-  if (stationCount.rows[0].count === 0 && process.env.STATIONS_SYNC_BEFORE_LISTEN !== "false") {
-    console.log("[stations] RU cache is empty; importing Russian fuel stations before first listen...");
-    try {
-      require("./scripts/sync-stations-russia").syncRussiaStations().catch((err) => console.error("[stations] RU import failed:", err.message));
-    } catch (err) {
-      console.error("[stations] initial RU import failed; starting server anyway:", err.message);
+  // First deployment: if the RU cache is empty, import Russian fuel stations
+  // in the background. The server is already accepting requests meanwhile.
+  try {
+    const stationCount = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM gas_stations WHERE country_code='RU'`
+    );
+    if (stationCount.rows[0].count === 0 && process.env.STATIONS_SYNC_BEFORE_LISTEN !== "false") {
+      console.log("[stations] RU cache is empty; importing Russian fuel stations in background...");
+      require("./scripts/sync-stations-russia").syncRussiaStations()
+        .then(() => console.log("[stations] initial RU import finished"))
+        .catch((err) => console.error("[stations] initial RU import failed:", err.message));
     }
+  } catch (err) {
+    console.error("[stations] could not check RU cache:", err.message);
   }
 
-  app.listen(port, () => console.log(`RegionWatch listening on :${port}`));
   schedulePriceSync();
   startDailyExternalSyncScheduler();
   startDailyRussiaStationSyncScheduler();
 }
 start().catch((err) => { console.error("Failed to start:", err); process.exit(1); });
+
 
 process.on("SIGTERM", async () => { await pool.end(); process.exit(0); });
