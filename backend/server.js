@@ -74,7 +74,7 @@ async function start() {
   if (stationCount.rows[0].count === 0 && process.env.STATIONS_SYNC_BEFORE_LISTEN !== "false") {
     console.log("[stations] RU cache is empty; importing Russian fuel stations before first listen...");
     try {
-      await require("./scripts/sync-stations-russia").syncRussiaStations();
+      require("./scripts/sync-stations-russia").syncRussiaStations().catch((err) => console.error("[stations] RU import failed:", err.message));
     } catch (err) {
       console.error("[stations] initial RU import failed; starting server anyway:", err.message);
     }
