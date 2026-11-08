@@ -19,7 +19,14 @@ router.get("/", async (req, res) => {
   const params = [];
   let where = `status NOT IN ('resolved','withdrawn') AND (source_type = 'user' OR (source_type IN ('osm','rss') AND source_reason IS NOT NULL))`;
   if (region) { params.push(region); where += ` AND region = $${params.length}`; }
-  const result = await pool.query(`SELECT * FROM problems WHERE ${where} ORDER BY created_at DESC LIMIT 500`, params);
+  // The Russia-wide public map needs more than the old 500-row cap. Put
+  // geolocated records first so unlocated RSS headlines cannot crowd pins off
+  // the map; retain recent unlocated reports after them for the feed.
+  const result = await pool.query(
+    `SELECT * FROM problems WHERE ${where}
+     ORDER BY (lat IS NOT NULL AND lng IS NOT NULL) DESC, created_at DESC
+     LIMIT 5000`, params
+  );
   const rows = result.rows.filter((row) => row.source_type === 'user' || isLikelyRussianRegion(row.region) || /(?:Россия|РФ|Russian Federation)/iu.test(String(row.source_reason || '')));
   res.set("Cache-Control", "public, max-age=15");
   res.json(rows);

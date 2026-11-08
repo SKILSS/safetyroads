@@ -138,11 +138,14 @@ async function fetchOverpass(query) {
 async function syncOsm() {
   let inserted = 0;
   const q = `[out:json][timeout:300];${RUSSIA_AREA_QUERY}(` +
+    // Explicit mapped hazards and road condition tags. This is a best-effort
+    // public-data layer, not a complete inventory of every road defect.
     `nwr["hazard"](area.russia);` +
     `nwr["surface"="mud"](area.russia);` +
-    `nwr["smoothness"~"^(very_bad|horrible|impassable)$"](area.russia);` +
+    `nwr["smoothness"~"^(bad|very_bad|horrible|very_horrible|impassable)$"](area.russia);` +
     `nwr["highway"="construction"](area.russia);` +
     `nwr["roadworks"](area.russia);` +
+    `nwr["access"="no"]["construction"](area.russia);` +
     `);out center tags;`;
   try {
     const data = await fetchOverpass(q);
@@ -163,7 +166,10 @@ async function syncOsm() {
         sourceReason: `Внешние данные OpenStreetMap: обнаружен признак «${c.kind}» в тегах объекта.`
       }) ? 1 : 0;
     }
-  } catch (e) { console.error('[external/osm] Russia area query failed:', e.message); }
+  } catch (e) {
+    console.error('[external/osm] Russia area query failed:', e.message);
+    throw e;
+  }
   return inserted;
 }
 
@@ -188,8 +194,16 @@ async function syncRss() {
         const region = normalizeRegion(russianContext) || 'Россия';
         const sourceUrl = item.link || url;
         const externalId = `rss:${hashId(sourceUrl + '|' + (item.guid || title))}`;
+        // Some feeds publish GeoRSS coordinates. Use them when present; do not
+        // pin an article to a guessed city/region centroid.
+        const geoText = [item['georss:point'], item.georssPoint, item.geo?.lat != null && item.geo?.long != null ? `${item.geo.lat} ${item.geo.long}` : null]
+          .filter(Boolean).join(' ');
+        const geoMatch = geoText.match(/(-?\d{1,2}(?:\.\d+)?)\s+(-?\d{1,3}(?:\.\d+)?)/);
+        const rssLat = geoMatch ? Number(geoMatch[1]) : null;
+        const rssLng = geoMatch ? Number(geoMatch[2]) : null;
+        const validRssPoint = Number.isFinite(rssLat) && Number.isFinite(rssLng) && rssLat >= 41 && rssLat <= 83 && rssLng >= 19 && rssLng <= 181;
         inserted += await insertExternal({ externalId, region, category: c.category, severity: c.severity,
-          titleRu: title, titleEn: `Road issue: ${c.kind}`, lat: null, lng: null,
+          titleRu: title, titleEn: `Road issue: ${c.kind}`, lat: validRssPoint ? rssLat : null, lng: validRssPoint ? rssLng : null,
           sourceType: 'rss', sourceName: feed.title || 'RSS', sourceUrl,
           sourceReason: `Внешний источник: публикация о дорожной проблеме в РФ (${c.kind}).` }) ? 1 : 0;
       }
